@@ -180,7 +180,7 @@
           <div class="meta-line" id="f_meta_line3"></div>
           <div class="course-actions">
             <button id="btn-detail" class="primary">รายละเอียด</button>
-            <button id="btn-report" class="secondary">ออกรายงาน</button>
+            <button id="btn-report" class="secondary">บันทึก</button>
           </div>
         </div>
       </div>
@@ -198,7 +198,7 @@
     <!-- ===== Report shortcuts ===== -->
     <section class="panel" id="report-panel">
       <div class="panel-head">
-        <div><h2>ออกรายงาน</h2><p>เลือกประเภทรายงานที่ต้องการเพื่อดำเนินการต่อ</p></div>
+        <div><h2>บันทึก/ออกรายงาน</h2><p>เลือกประเภทรายงานที่ต้องการเพื่อดำเนินการต่อ</p></div>
       </div>
       <div class="report-grid" id="report-grid"></div>
     </section>
@@ -214,12 +214,12 @@ function toggleSidebar(){
 
 <script>
     const REPORTS = [
-        { num: '05', name: 'ประมาณการค่าใช้จ่าย',        icon: '⭐', bg: '#fff6e8', fg: '#bf7800', href: '05.Budgeted-Expenses.html' },
-        { num: '06', name: 'สรุปค่าใช้จ่ายจริง',          icon: '📋', bg: '#eafaf5', fg: '#0f8a73', href: '06.Sum-Training-Expenses.html' },
-        { num: '07', name: 'สรุปฯ (ใบปะหน้า)',            icon: '📝', bg: '#f1edfc', fg: '#7865c8', href: '07.Sum-Borrow1.html' },
-        { num: '08', name: 'ใบหักล้างยืมเงิน (บง.27)',    icon: '🧾', bg: '#fdeeea', fg: '#c4562f', href: '08.Form-Pwa-27.html' },
-        { num: '09', name: 'ค่าวัสดุเบ็ดเตล็ด (ว.119)',   icon: '⏱️', bg: '#f0f4f7', fg: '#557080', href: '09.V199.html' },
-        { num: '01', name: 'ภาพรวมทั้งหมด',               icon: '🏠', bg: '#eaf4fb', fg: '#0b6aab', href: '10.PDF-Overview.html' },
+        { num: '05', name: 'ประมาณการค่าใช้จ่าย',        icon: '⭐', bg: '#fff6e8', fg: '#bf7800', href: '05_Budgeted-Expenses.html' },
+        { num: '06', name: 'สรุปค่าใช้จ่ายจริง',          icon: '📋', bg: '#eafaf5', fg: '#0f8a73', href: '06_Sum-Training-Expenses.html' },
+        { num: '07', name: 'สรุปฯ (ใบปะหน้า)',            icon: '📝', bg: '#f1edfc', fg: '#7865c8', href: '07_Sum-Borrow1.html' },
+        { num: '08', name: 'ใบหักล้างยืมเงิน (บง.27)',    icon: '🧾', bg: '#fdeeea', fg: '#c4562f', href: '08_Form-Pwa-27.html' },
+        { num: '09', name: 'ค่าวัสดุเบ็ดเตล็ด (ว.119)',   icon: '⏱️', bg: '#f0f4f7', fg: '#557080', href: '09_V199.html' },
+        { num: '01', name: 'ภาพรวมทั้งหมด',               icon: '🏠', bg: '#eaf4fb', fg: '#0b6aab', href: '10_PDF-Overview.html' },
     ];
 
     function renderReportCards() {

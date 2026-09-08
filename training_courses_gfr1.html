@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>หลักสูตรการฝึกอบรม | PWA Academy</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- ── Shared modules (ต้องเรียงลำดับนี้เสมอ: config -> supabase SDK -> auth/date/gas-api) ── -->
+<script src="js/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/auth.js"></script>
+<script src="js/date-th.js"></script>
+<script src="js/gas-api.js"></script>
+<script>checkAuth();</script>
+<style>
+:root{
+  --navy:#092c4c;--navy-mid:#0d547f;--blue:#0b6aab;--blue-light:#2589c5;
+  --accent:#bf7800;--accent-light:#d99a2b;
+  --gray-50:#f3f6f8;--gray-100:#eef0f4;--gray-200:#dde1e9;
+  --gray-400:#8f97a8;--text:#1b2a38;--text-soft:#627587;
+  --border:#dce5ec;--info-bg:#eaf4fb;--info:#0b6aab;
+  --green:#197a5d;--green-bg:#eafaf5;
+  --amber-bg:#fff6e8;--amber:#bf7800;
+  --red:#c0364f;--red-bg:#fdeeea;
+  --line:#dce5ec;--sky:#eaf4fb
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Prompt',sans-serif;background:var(--gray-50);color:var(--text);font-size:14px;line-height:1.6}
+
+/* ===== Shared layout (sidebar + main), consistent with annual-plan.html ===== */
+.layout{display:flex;min-height:100vh}
+.sidebar{position:sticky;top:0;align-self:flex-start;height:100vh;width:260px;flex:0 0 260px;background:var(--navy);color:#dce8f2;padding:20px 16px;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;transition:width .22s ease,flex-basis .22s ease,padding .22s ease}
+.sidebar::-webkit-scrollbar{width:5px}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px}
+.sidebar-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:0 6px 20px;border-bottom:1px solid rgba(255,255,255,.15)}
+.brand{display:flex;align-items:center;gap:11px;min-width:0;overflow:hidden}
+.mark{height:37px;width:37px;flex:0 0 37px;border-radius:10px;object-fit:cover;background:#fff}
+.brand-text{min-width:0}
+.brand b{display:block;color:#fff;font-size:15px;white-space:nowrap}
+.brand span{font-size:11px;color:#a9c3d6;white-space:nowrap}
+.nav{padding-top:20px}
+.nav-label{font-size:11px;letter-spacing:.08em;color:#82a4bd;padding:0 12px 10px;white-space:nowrap;overflow:hidden}
+.nav a{display:flex;align-items:center;gap:12px;text-decoration:none;color:#c9dae7;padding:12px;border-radius:8px;margin:3px 0;transition:.15s;white-space:nowrap;overflow:hidden}
+.nav a:hover{background:rgba(255,255,255,.08)}
+.nav a.active{background:#1275b4;color:#fff;font-weight:700;box-shadow:inset 3px 0 #91d8ff}
+.nav svg{width:19px;height:19px;flex:0 0 19px;fill:none;stroke:currentColor;stroke-width:1.8}
+.user{margin-top:auto;background:rgba(255,255,255,.07);padding:13px;border-radius:9px;font-size:12px;overflow:hidden;white-space:nowrap;flex:0 0 auto}
+.user b{color:#fff;display:block;margin-bottom:3px}
+.user span{color:#a9c3d6}
+.sidebar-toggle{flex:0 0 26px;width:26px;height:26px;background:transparent;border:0;color:#cfe0ee;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;margin-top:2px;padding:0}
+.sidebar-toggle:hover{color:#fff}
+.sidebar-toggle svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.2;transition:transform .22s ease}
+.sidebar-toggle.collapsed svg{transform:rotate(180deg)}
+.sidebar.collapsed{width:76px;flex-basis:76px;padding-left:12px;padding-right:12px}
+.sidebar.collapsed .sidebar-head{flex-direction:column;align-items:center;gap:12px;padding-left:0;padding-right:0}
+.sidebar.collapsed .brand{justify-content:center}
+.sidebar.collapsed .brand-text,.sidebar.collapsed .nav-label,.sidebar.collapsed .user{display:none}
+.sidebar.collapsed .nav a{justify-content:center;padding-left:8px;padding-right:8px}
+.sidebar.collapsed .nav a span{display:none}
+
+.main{width:calc(100% - 260px);max-width:calc(100% - 260px);padding:30px 34px 60px;min-width:0;transition:width .22s ease,max-width .22s ease;overflow-x:hidden}
+.main.wide{width:calc(100% - 76px);max-width:calc(100% - 76px)}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px}
+.crumb{font-size:12px;color:var(--text-soft);margin-bottom:5px}
+.topbar h1{font-size:25px;margin:0;color:var(--navy);letter-spacing:-.4px;font-weight:700}
+
+.year-dd{position:relative}
+.year-btn{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-weight:700;color:var(--navy);cursor:pointer;font:inherit;display:flex;align-items:center;gap:6px;transition:.15s}
+.year-btn:hover{border-color:#b9cddb;background:#fbfdfe}
+.year-menu{position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(19,47,68,.14);min-width:180px;padding:6px;display:none;z-index:250}
+.year-menu.show{display:block}
+.year-menu button{width:100%;text-align:left;background:transparent;border:0;padding:9px 11px;border-radius:7px;font:inherit;font-size:13px;color:#384b5a;cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+.year-menu button:hover{background:#f2f6f8}
+.year-menu button.active{color:var(--blue);font-weight:700;background:#eaf4fb}
+.year-menu button .chk{opacity:0;color:var(--blue)}
+.year-menu button.active .chk{opacity:1}
+
+/* PAGE */
+.page{width:100%}
+.year-panel{display:none}
+.year-panel.active{display:block}
+
+
+
+/* COURSE CARD */
+.course-card{
+  background:white;border:1px solid var(--border);border-radius:14px;
+  margin-bottom:22px;overflow:hidden;
+  box-shadow:0 1px 3px rgba(15,39,68,.06), 0 8px 20px -12px rgba(15,39,68,.18);
+}
+.course-header{
+  background:var(--navy);
+  padding:16px 20px 15px;position:relative;
+}
+.course-no{font-size:11px;font-weight:600;color:var(--accent-light);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;padding-right:120px}
+.course-title{font-size:15px;font-weight:600;color:white;line-height:1.5;margin-bottom:10px;padding-right:120px}
+.course-meta-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.course-tag{font-size:12px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);padding:3px 10px;border-radius:20px}
+.btn-add-run{
+  position:absolute;top:14px;right:20px;
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 16px;background:var(--blue);color:white;
+  border:none;border-radius:50px;font-family:'Prompt',sans-serif;
+  font-size:12.5px;font-weight:700;cursor:pointer;
+  box-shadow:0 3px 12px rgba(11,106,171,.4);transition:all .18s;
+  white-space:nowrap;
+}
+.btn-add-run:hover{background:var(--blue-light);box-shadow:0 4px 16px rgba(11,106,171,.5);transform:translateY(-2px)}
+.btn-add-run .icon-circle{font-size:13px;line-height:1}
+
+/* RUN TABLE */
+.run-table-wrap{overflow-x:auto}
+.run-table{width:100%;border-collapse:collapse;font-size:13px}
+.run-table thead th{background:var(--navy-mid);color:white;padding:8px 12px;font-weight:500;text-align:center;font-size:12px;white-space:nowrap}
+.run-table thead th.left{text-align:left}
+.run-table tbody tr:nth-child(even):not(.run-total){background:var(--gray-50)}
+.run-table tbody tr:hover:not(.run-total){background:var(--info-bg)}
+.run-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.run-table tbody tr:last-child td{border-bottom:none}
+.run-table .center{text-align:center}
+.run-table .right{text-align:right;color:var(--text-soft);font-size:12px}
+.mono{font-family:monospace;font-size:12px;color:var(--text-soft);letter-spacing:.03em;text-align:center}
+.run-badge{font-weight:600;color:var(--blue)}
+.pax{font-weight:600;color:var(--navy)}
+.trainer-ext{font-size:11.5px;color:var(--text-soft);line-height:1.5}
+.run-total td{background:var(--gray-100);font-weight:600}
+.pax.total{font-size:15px;color:var(--blue)}
+
+/* ATTACH BUTTON (in table cell) */
+.attach-btn{
+  padding:3px 10px;background:var(--info-bg);color:var(--blue);
+  border:1px solid var(--blue);border-radius:12px;
+  font-family:'Prompt',sans-serif;font-size:11px;cursor:pointer;
+  white-space:nowrap;transition:all .15s;display:inline-flex;align-items:center;gap:4px;
+}
+.attach-btn:hover{background:var(--blue);color:white}
+.attach-btn.has-files{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.attach-btn.has-files:hover{background:var(--green);color:white}
+
+/* FILE PANEL (slides down under table) */
+.file-panel{
+  max-height:0;overflow:hidden;
+  transition:max-height .35s ease;
+  border-top:0 solid var(--border);background:var(--gray-50);
+}
+.file-panel.open{
+  max-height:1000px;
+  border-top:1px solid var(--border);
+}
+
+/* FILE PANEL INNER */
+.fp-inner{padding:14px 20px 16px}
+.fp-cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+
+/* CATEGORY BOX */
+.fp-cat{background:white;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.fp-cat-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 14px;background:var(--navy-mid);
+}
+.fp-cat-label{font-size:12px;font-weight:600;color:white;display:flex;align-items:center;gap:6px}
+.fp-cat-upload{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 10px;background:rgba(255,255,255,.15);color:white;
+  border:1px solid rgba(255,255,255,.25);border-radius:4px;
+  font-family:'Prompt',sans-serif;font-size:11px;cursor:pointer;
+}
+.fp-cat-upload:hover{background:var(--accent);color:var(--navy);border-color:var(--accent)}
+.fp-cat-upload input{display:none}
+.fp-cat-body{padding:10px 12px;min-height:60px}
+.fp-cat-empty{font-size:12px;color:var(--gray-400);text-align:center;padding:10px 0}
+
+/* FILE ITEMS */
+.fp-items{display:flex;flex-direction:column;gap:6px}
+.fp-item{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--gray-50);
+}
+.fp-item-thumb{
+  width:36px;height:36px;border-radius:4px;overflow:hidden;
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  background:var(--gray-100);
+}
+.fp-item-thumb img{width:100%;height:100%;object-fit:cover}
+.fp-item-thumb .pdf-icon{font-size:20px}
+.fp-item-info{flex:1;min-width:0}
+.fp-item-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp-item-meta{font-size:11px;color:var(--gray-400)}
+.fp-item-actions{display:flex;gap:4px;flex-shrink:0}
+.fp-btn-view{padding:2px 8px;font-size:11px;background:var(--info-bg);color:var(--blue);border:1px solid var(--blue);border-radius:4px;cursor:pointer;text-decoration:none;font-family:'Prompt',sans-serif}
+.fp-btn-del{padding:2px 6px;font-size:11px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:4px;cursor:pointer;font-family:'Prompt',sans-serif}
+
+/* PROGRESS */
+.fp-prog{display:none;align-items:center;gap:8px;padding:6px 0}
+.fp-prog.show{display:flex}
+.fp-prog-bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.fp-prog-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .3s}
+.fp-prog-label{font-size:11px;color:var(--text-soft);white-space:nowrap}
+
+/* CONFIG WARNING */
+.fp-warn{
+  grid-column:1/-1;padding:8px 14px;
+  background:var(--amber-bg);border-left:3px solid var(--accent);
+  border-radius:0 6px 6px 0;font-size:12px;color:var(--amber);
+}
+
+/* DETAIL BUTTON */
+.detail-btn{
+  padding:3px 10px;background:var(--amber-bg);color:var(--amber);
+  border:1px solid var(--accent);border-radius:12px;
+  font-family:'Prompt',sans-serif;font-size:11px;cursor:pointer;
+  white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px;
+  transition:all .15s;
+}
+.detail-btn:hover{background:var(--accent);color:var(--navy);font-weight:600}
+
+/* FLOATING ADD COURSE BUTTON */
+.btn-add-course-float{
+  position:fixed;bottom:28px;right:28px;z-index:300;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 22px;background:var(--blue);color:white;
+  border:none;border-radius:50px;font-family:'Prompt',sans-serif;
+  font-size:14px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 20px rgba(11,106,171,.45);transition:all .18s;
+}
+.btn-add-course-float:hover{background:var(--blue-light);box-shadow:0 6px 28px rgba(11,106,171,.55);transform:translateY(-2px)}
+.btn-add-course-float .fab-icon{font-size:18px;line-height:1}
+
+/* MODAL OVERLAY */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(10,20,40,.55);
+  z-index:500;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal-box{
+  background:white;border-radius:14px;width:100%;max-width:680px;
+  max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.modal-head{
+  background:var(--navy);padding:16px 22px;display:flex;
+  align-items:center;justify-content:space-between;border-radius:14px 14px 0 0;
+}
+.modal-head h2{color:white;font-size:15px;font-weight:600}
+.modal-close{background:rgba(255,255,255,.15);border:none;color:white;width:30px;height:30px;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.modal-close:hover{background:rgba(255,255,255,.3)}
+.modal-body{padding:22px}
+.form-section{margin-bottom:18px}
+.form-section-title{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:12px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-row.single{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:12px;font-weight:600;color:var(--text-soft)}
+.form-group input,.form-group textarea,.form-group select{
+  padding:8px 10px;border:1px solid var(--border);border-radius:6px;
+  font-family:'Prompt',sans-serif;font-size:13px;color:var(--text);
+  background:var(--gray-50);transition:border-color .15s;
+}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{
+  outline:none;border-color:var(--blue);background:white;
+}
+.form-group textarea{resize:vertical;min-height:60px}
+.runs-section{background:var(--gray-50);border:1px solid var(--border);border-radius:8px;padding:14px}
+.runs-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.runs-section-head span{font-size:12px;font-weight:700;color:var(--text-soft)}
+.btn-add-run-legacy{padding:4px 12px;background:var(--navy);color:white;border:none;border-radius:5px;font-family:'Prompt',sans-serif;font-size:12px;cursor:pointer}
+.btn-add-run-legacy:hover{background:var(--blue)}
+.run-entry{background:white;border:1px solid var(--border);border-radius:7px;padding:12px;margin-bottom:8px;position:relative}
+.run-entry-num{font-size:11px;font-weight:700;color:var(--blue);margin-bottom:8px}
+.btn-del-run{position:absolute;top:8px;right:10px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:4px;font-size:11px;padding:2px 7px;cursor:pointer;font-family:'Prompt',sans-serif}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:var(--gray-50);border-radius:0 0 14px 14px}
+.btn-cancel{padding:8px 18px;background:white;color:var(--text-soft);border:1px solid var(--border);border-radius:7px;font-family:'Prompt',sans-serif;font-size:13px;cursor:pointer}
+.btn-cancel:hover{background:var(--gray-100)}
+.btn-save-course{padding:8px 22px;background:var(--green);color:white;border:none;border-radius:7px;font-family:'Prompt',sans-serif;font-size:13px;font-weight:600;cursor:pointer}
+.btn-save-course:hover{background:#15693e}
+.preview-note{font-size:11px;color:var(--gray-400);margin-top:6px}
+
+/* COMING SOON */
+.coming-soon{text-align:center;padding:80px 20px;color:var(--gray-400)}
+.coming-soon .cs-icon{font-size:52px;margin-bottom:14px}
+.coming-soon h3{font-size:17px;font-weight:500;color:var(--text-soft);margin-bottom:8px}
+.coming-soon p{font-size:13px;line-height:1.7}
+.coming-soon .cs-year{display:inline-block;margin-top:16px;background:var(--navy);color:var(--accent-light);font-size:22px;font-weight:700;padding:8px 24px;border-radius:8px}
+
+footer{display:none}
+
+@media(max-width:1050px){.main{padding:22px}.sidebar{width:215px;flex-basis:215px}.main{width:calc(100% - 215px);max-width:calc(100% - 215px)}}
+@media(max-width:720px){.sidebar{display:none}.main{width:100%;max-width:100%;padding:18px}.topbar{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <div class="brand">
+        <img class="mark" src="https://res.cloudinary.com/daytjjgll/image/upload/fl_preserve_transparency/v1786810067/iuss72yvmfk5i0hndhdy.jpg?_s=public-apps" alt="Logo">
+        <div class="brand-text"><b>PWA RTD1</b><span>ระบบติดตามงบประมาณและหลักสูตรฝึกอบรม</span></div>
+      </div>
+      <button id="sidebarToggle" class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="ยืด / หด เมนู">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+      </button>
+    </div>
+    <nav class="nav">
+      <div class="nav-label">เมนูหลัก</div>
+      <a href="overview.html" title="ภาพรวม"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM9 21v-6h6v6"/></svg><span>ภาพรวม</span></a>
+      <a href="annual-plan.html" title="แผนงานประจำปี"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span>แผนงานประจำปี</span></a>
+      <a class="active" href="training_courses_gfr1.html" title="หลักสูตรการฝึกอบรม"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg><span>หลักสูตรการฝึกอบรม</span></a>
+      <a href="projects.html" title="โครงการ"><svg viewBox="0 0 24 24"><path d="M4 7h16v13H4zM8 7V4h8v3M8 12h8"/></svg><span>โครงการ</span></a>
+      <a href="settings.html" title="ตั้งค่า"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.04 2.04-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2.88v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.04-2.04.06-.06A1.7 1.7 0 0 0 7.3 14.8a1.7 1.7 0 0 0-1.56-1.03H5.6v-2.88h.14A1.7 1.7 0 0 0 7.3 9.86 1.7 1.7 0 0 0 6.96 8l-.06-.06L8.94 5.9 9 5.96a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56V4.6h2.88v.14a1.7 1.7 0 0 0 1.03 1.56A1.7 1.7 0 0 0 17.7 5.96l.06-.06 2.04 2.04-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03h.14v2.88h-.14A1.7 1.7 0 0 0 19.4 15z"/></svg><span>ตั้งค่า</span></a>
+    </nav>
+    <div class="user"><b id="userName">กำลังโหลด...</b><span id="userSub">เจ้าหน้าที่ฝึกอบรม</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="crumb">หลักสูตรการฝึกอบรม / กองฝึกอบรมภูมิภาค 1</div>
+        <h1>หลักสูตรการฝึกอบรม</h1>
+      </div>
+      <div class="year-dd" id="yearDD">
+        <button class="year-btn" type="button" onclick="toggleYearMenu(event)">
+          <span>ปีงบประมาณ <span id="yearLabel">2570</span></span> ▾
+        </button>
+        <div class="year-menu" id="yearMenu">
+          <button type="button" class="active" data-y="2570" onclick="selectYear(2570)"><span>ปีงบประมาณ 2570</span><span class="chk">✓</span></button>
+          <button type="button" data-y="2569" onclick="selectYear(2569)"><span>ปีงบประมาณ 2569</span><span class="chk">✓</span></button>
+        </div>
+      </div>
+    </header>
+
+<div class="page">
+
+<!-- ===== ปี 2570 ===== -->
+<div class="year-panel active" id="panel-2570">
+  <div id="gs-courses-2570"></div>
+  <div id="gs-courses-loading-2570" style="text-align:center;padding:40px;color:var(--text-soft);font-size:13px;display:none;">⏳ กำลังโหลดหลักสูตรปี 2570...</div>
+  <div id="gs-empty-2570" style="display:none;text-align:center;padding:60px 20px;color:var(--gray-400);"><div style="font-size:44px;margin-bottom:12px">📋</div><p style="font-size:14px;color:var(--text-soft)">ยังไม่มีหลักสูตรที่เพิ่มใหม่ปี 2570<br><span style="font-size:12px">กดปุ่ม + เพื่อเพิ่มหลักสูตร</span></p></div>
+</div><!-- end panel-2570 -->
+
+<!-- ===== ปี 2569 ===== -->
+<div class="year-panel" id="panel-2569">
+  <div id="gs-courses-2569"></div>
+  <div id="gs-courses-loading-2569" style="text-align:center;padding:40px;color:var(--text-soft);font-size:13px;display:none;">⏳ กำลังโหลดหลักสูตรปี 2569...</div>
+  <div id="gs-empty-2569" style="display:none;text-align:center;padding:60px 20px;color:var(--gray-400);"><div style="font-size:44px;margin-bottom:12px">📋</div><p style="font-size:14px;color:var(--text-soft)">ยังไม่มีหลักสูตรที่เพิ่มใหม่ปี 2569</p></div>
+</div><!-- end panel-2569 -->
+
+</div><!-- end .page -->
+  </main>
+</div><!-- end .layout -->
+
+<!-- ===== MODAL เพิ่มหลักสูตร ===== -->
+<div class="modal-overlay" id="addCourseModal" onclick="closeModalOutside(event)">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>📚 เพิ่มหลักสูตรใหม่ — ปีงบประมาณ <span id="modalYear">2570</span></h2>
+      <input type="hidden" id="fc_year" value="2570">
+      <button class="modal-close" onclick="closeAddCourse()">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-section">
+        <div class="form-section-title">🎓 ข้อมูลหลักสูตร</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>หลักสูตรที่ (ลำดับ)</label>
+            <input type="number" id="fc_courseNum" placeholder="เช่น 14" min="1" style="width:100%">
+          </div>
+          <div class="form-group">
+            <label>รุ่นที่</label>
+            <input type="text" id="fc_batch" placeholder="เช่น 3/69 หรือ 14-1/69">
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label>ชื่อหลักสูตร *</label>
+            <textarea id="fc_title" placeholder="กรอกชื่อหลักสูตรเต็ม..." rows="2"></textarea>
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label>เลขที่หลักสูตร *</label>
+            <input type="text" id="fc_runid" placeholder="เช่น 01320831" maxlength="8">
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label>ผูกกับแผนงานประจำปี</label>
+            <select id="fc_planId">
+              <option value="">— ไม่ผูกกับแผน —</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label>วันที่จัดอบรม</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="date" id="fc_date_start" style="flex:1">
+              <span style="color:var(--text-soft);font-size:12px;white-space:nowrap">ถึง</span>
+              <input type="date" id="fc_date_end" style="flex:1">
+            </div>
+            <div id="fc_date_display" style="font-size:11px;color:var(--blue);margin-top:3px;display:none"></div>
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label>สถานที่จัดอบรม</label>
+            <input type="text" id="fc_location" placeholder="เช่น โรงแรม / กปภ.สาขา...">
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeAddCourse()">ยกเลิก</button>
+      <button class="btn-save-course" id="btnSaveCourse" onclick="saveCourse()">✅ บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL เพิ่มรุ่น (สำหรับหลักสูตรที่มีอยู่แล้ว) ===== -->
+<div class="modal-overlay" id="addRunModal" onclick="closeModalOutsideRun(event)">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>➕ เพิ่มรุ่นใหม่ — <span id="runModalCourseLabel">หลักสูตรที่ ...</span></h2>
+      <input type="hidden" id="ar_year" value="">
+      <input type="hidden" id="ar_courseNum" value="">
+      <input type="hidden" id="ar_courseTitle" value="">
+      <button class="modal-close" onclick="closeAddRun()">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-section">
+        <div class="form-section-title">🎓 ข้อมูลหลักสูตร (อ้างอิง)</div>
+        <div class="form-row single">
+          <div class="form-group">
+            <label>ชื่อหลักสูตร</label>
+            <textarea id="ar_title_display" rows="2" readonly style="background:var(--gray-50);color:var(--text-soft);"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">📋 ข้อมูลรุ่นใหม่</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>รุ่นที่ *</label>
+            <input type="text" id="ar_batch" placeholder="เช่น 4/69 หรือ 1-5/69">
+          </div>
+          <div class="form-group">
+            <label>เลขที่หลักสูตร (รุ่นนี้) *</label>
+            <input type="text" id="ar_runid" placeholder="เช่น 01320831" maxlength="8">
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label>ผูกกับแผนงานประจำปี</label>
+            <select id="ar_planId">
+              <option value="">— ไม่ผูกกับแผน —</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label>วันที่จัดอบรม</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="date" id="ar_date_start" style="flex:1">
+              <span style="color:var(--text-soft);font-size:12px;white-space:nowrap">ถึง</span>
+              <input type="date" id="ar_date_end" style="flex:1">
+            </div>
+            <div id="ar_date_display" style="font-size:11px;color:var(--blue);margin-top:3px;display:none"></div>
+          </div>
+        </div>
+
+        <div class="form-row single">
+          <div class="form-group">
+            <label>สถานที่จัดอบรม</label>
+            <input type="text" id="ar_location" placeholder="เช่น โรงแรม / กปภ.สาขา...">
+          </div>
+        </div>
+      </div>
+
+      <p class="preview-note">💡 รุ่นใหม่จะถูกเพิ่มในการ์ดหลักสูตรเดิม เรียงตามเลขที่หลักสูตรอัตโนมัติ</p>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeAddRun()">ยกเลิก</button>
+      <button class="btn-save-course" id="btnSaveRun" onclick="saveRun()">✅ บันทึกรุ่นใหม่</button>
+    </div>
+  </div>
+</div>
+
+<!-- FLOATING ADD COURSE BUTTON -->
+<button class="btn-add-course-float" id="fabAddCourse" onclick="openAddCourse(currentActiveYear())">
+  <span class="fab-icon">＋</span> เพิ่มหลักสูตร
+</button>
+
+<script>
+/* --- Sidebar collapse/expand --- */
+function toggleSidebar(){
+  const sidebar=document.querySelector('.sidebar'),main=document.querySelector('.main'),button=document.getElementById('sidebarToggle');
+  sidebar.classList.toggle('collapsed');main.classList.toggle('wide');button.classList.toggle('collapsed');
+}
+
+/* --- Year dropdown (top-right) --- */
+function toggleYearMenu(e){
+  e.stopPropagation();
+  document.getElementById('yearMenu').classList.toggle('show');
+}
+document.addEventListener('click', ()=>document.getElementById('yearMenu')?.classList.remove('show'));
+function selectYear(y){
+  document.getElementById('yearLabel').textContent = y;
+  document.getElementById('yearMenu').classList.remove('show');
+  document.querySelectorAll('#yearMenu button').forEach(b=>b.classList.toggle('active', +b.dataset.y === y));
+  document.querySelectorAll('.year-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+y)?.classList.add('active');
+}
+
+/* --- Popup แจ้งว่าฟีเจอร์นี้อยู่ระหว่างปรับปรุง (ใช้กับปุ่มแนบไฟล์) --- */
+function showUnderConstructionPopup(){
+  let overlay = document.getElementById('under-construction-overlay');
+  if(overlay){ overlay.style.display = 'flex'; return; }
+  overlay = document.createElement('div');
+  overlay.id = 'under-construction-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.style.display = 'none'; };
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:30px 32px;max-width:340px;width:100%;
+      box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:'Prompt',sans-serif;text-align:center;">
+      <div style="font-size:42px;margin-bottom:12px;">🚧</div>
+      <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px;">อยู่ระหว่างปรับปรุง</div>
+      <div style="font-size:13px;color:var(--text-soft);margin-bottom:22px;line-height:1.6;">ฟีเจอร์แนบไฟล์กำลังอยู่ระหว่างการพัฒนา<br>ขออภัยในความไม่สะดวก</div>
+      <button onclick="document.getElementById('under-construction-overlay').style.display='none'"
+        style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 28px;
+        font-family:'Prompt',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">ตกลง</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+/* ============================================================
+   ADD COURSE MODAL
+   ============================================================ */
+
+/* helper: หาปีที่ active อยู่ */
+/* ============================================================
+   ANNUAL PLAN — โหลดรายการแผนงานประจำปี (read-only จาก sheet annual_plan)
+   มาใส่ dropdown ให้เลือกตอนเพิ่มหลักสูตร/เพิ่มรุ่น เพื่อผูก planId เก็บลง courses.planId
+   ============================================================ */
+let _annualPlanList = null;
+async function loadAnnualPlanList(){
+  if (_annualPlanList) return _annualPlanList;
+  const result = await gsApi('getAnnualPlan');
+  _annualPlanList = Array.isArray(result) ? result : [];
+  return _annualPlanList;
+}
+function populatePlanSelect(selectEl, selectedValue){
+  if (!selectEl) return;
+  const list = _annualPlanList || [];
+  const opts = ['<option value="">— ไม่ผูกกับแผน —</option>'].concat(
+    list.map(p => {
+      const label = (p.name || '').length > 60 ? p.name.slice(0, 60) + '…' : (p.name || '');
+      return `<option value="${p.planId}">${p.planId} — ${label}</option>`;
+    })
+  );
+  selectEl.innerHTML = opts.join('');
+  selectEl.value = selectedValue || '';
+}
+
+function currentActiveYear(){
+  const active = document.querySelector('.year-panel.active');
+  return active ? active.id.replace('panel-','') : '2570';
+}
+
+function openAddCourse(year){
+  const y = year || currentActiveYear();
+  document.getElementById('modalYear').textContent = y;
+  document.getElementById('fc_year').value = y;
+  // clear fields
+  ['fc_courseNum','fc_title','fc_batch','fc_runid','fc_date_start','fc_date_end','fc_location'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  document.getElementById('fc_date_display').style.display = 'none';
+  document.getElementById('addCourseModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // เติมดรอปดาวน์แผนงานประจำปี
+  loadAnnualPlanList().then(() => populatePlanSelect(document.getElementById('fc_planId')));
+
+  // live preview วันที่
+  ['fc_date_start','fc_date_end'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', updateFcDateDisplay);
+  });
+}
+
+function updateFcDateDisplay(){
+  const s = document.getElementById('fc_date_start').value;
+  const e = document.getElementById('fc_date_end').value;
+  const disp = document.getElementById('fc_date_display');
+  if(!s){ disp.style.display='none'; return; }
+  disp.style.display = 'block';
+  disp.textContent = '📅 ' + DateTH.formatRange(s, e, {month:'short'});
+}
+
+function closeAddCourse(){
+  document.getElementById('addCourseModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeModalOutside(e){
+  if(e.target === document.getElementById('addCourseModal')) closeAddCourse();
+}
+
+async function saveCourse(){
+  const courseNum = document.getElementById('fc_courseNum').value.trim();
+  const year     = document.getElementById('fc_year').value || currentActiveYear();
+  const title    = document.getElementById('fc_title').value.trim();
+  const batch    = document.getElementById('fc_batch').value.trim();
+  const runid    = document.getElementById('fc_runid').value.trim();
+  const planId   = document.getElementById('fc_planId').value.trim();
+  const dateStart= document.getElementById('fc_date_start').value;
+  const dateEnd  = document.getElementById('fc_date_end').value;
+  const location = document.getElementById('fc_location').value.trim();
+
+  if(!title){ alert('กรุณากรอกชื่อหลักสูตรก่อนบันทึก'); return; }
+  if(!runid){ alert('กรุณากรอกเลขที่หลักสูตร (8 หลัก) ก่อนบันทึก'); return; }
+
+  const btn = document.getElementById('btnSaveCourse');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังบันทึก...';
+
+  const dateCombo = dateStart && dateEnd && dateStart !== dateEnd
+    ? dateStart + '_' + dateEnd
+    : (dateStart || '');
+
+  /* ── 1. บันทึกลง Google Sheet sheet: courses ── */
+  const sheetData = {
+    no: runid, course: title, batch,
+    courseNum: courseNum ? parseInt(courseNum) : '',
+    year: String(year),   // force string — ป้องกัน Sheets แปลง 2568 เป็น Date serial
+    planId: planId || '',
+    dateStart: dateStart || '',
+    dateEnd: dateEnd || '',
+    location: location || '',
+    savedAt: new Date().toISOString()
+  };
+  await gsApi('updateCourseField', sheetData, runid);
+
+  /* ── 2. บันทึกลง localStorage (tms_saved_slots) เหมือน 01 ── */
+  const STORAGE_KEY = 'tms_saved_slots';
+  let slots = [];
+  try{ slots = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }catch{}
+
+  const now = new Date().toLocaleString('th-TH', { dateStyle:'short', timeStyle:'short' });
+  const id  = Date.now();
+  const newSlot = {
+    id, course: title, batch, no: runid,
+    courseNum: courseNum ? parseInt(courseNum) : '',
+    year: String(year),   // force string — ป้องกัน Sheets แปลง 2568 เป็น Date serial
+    planId: planId || '',
+    date: dateCombo, dateStart, dateEnd,
+    location, savedAt: now
+  };
+  // overwrite ถ้าเลขซ้ำ
+  const idx = slots.findIndex(s => s.no && s.no === runid);
+  if(idx >= 0){
+    const keep = { actual:slots[idx].actual, actual06:slots[idx].actual06, actual07:slots[idx].actual07, budget:slots[idx].budget };
+    slots[idx] = { ...newSlot, ...keep };
+  } else {
+    slots.unshift(newSlot);
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(slots.slice(0,20)));
+
+  /* ── 3. ส่งชุดข้อมูลหลักสูตรไปยัง sessionStorage + flag ว่ามาจากหน้าหลัก ── */
+  const courseData = {
+    course: title, batch, no: runid,
+    courseNum: courseNum ? parseInt(courseNum) : '',
+    year: String(year),   // force string — ป้องกัน Sheets แปลง 2568 เป็น Date serial
+    planId: planId || '',
+    date: dateCombo, dateStart, dateEnd,
+    location,
+    _fromCourseList: true   // flag ให้ 01 ล็อคฟิลด์
+  };
+  sessionStorage.setItem('courseData', JSON.stringify(courseData));
+
+  /* ── 4. นำทางไปหน้า 01 ทันที ── */
+  window.location.href = '01.Main-Reports.html';
+}
+
+/* ============================================================
+   เพิ่มรุ่นใหม่ — สำหรับหลักสูตรที่มีอยู่แล้วในการ์ด
+   ============================================================ */
+function openAddRun(groupKey, year){
+  const card = document.getElementById('gscard-' + groupKey);
+  const courseNum   = card ? card.dataset.coursenum : '';
+  const courseTitle = card ? card.dataset.coursetitle : '';
+  const planIdVal   = card ? card.dataset.planid : '';
+  const yr = year || (card ? card.dataset.year : '') || currentActiveYear();
+
+  document.getElementById('runModalCourseLabel').textContent = courseNum ? ('หลักสูตรที่ ' + courseNum) : courseTitle;
+  document.getElementById('ar_title_display').value = courseTitle;
+  document.getElementById('ar_year').value = yr;
+  document.getElementById('ar_courseNum').value = courseNum || '';
+  document.getElementById('ar_courseTitle').value = courseTitle;
+
+  // clear fields ของรุ่นใหม่
+  ['ar_batch','ar_runid','ar_date_start','ar_date_end','ar_location'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  document.getElementById('ar_date_display').style.display = 'none';
+
+  // เติมดรอปดาวน์แผนงานประจำปี — เลือก planId ของหลักสูตรนี้ไว้ให้อัตโนมัติ (ถ้ารุ่นก่อนหน้าผูกไว้แล้ว)
+  loadAnnualPlanList().then(() => populatePlanSelect(document.getElementById('ar_planId'), planIdVal));
+
+  document.getElementById('addRunModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  ['ar_date_start','ar_date_end'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', updateArDateDisplay);
+  });
+}
+
+function updateArDateDisplay(){
+  const s = document.getElementById('ar_date_start').value;
+  const e = document.getElementById('ar_date_end').value;
+  const disp = document.getElementById('ar_date_display');
+  if(!s){ disp.style.display='none'; return; }
+  disp.style.display = 'block';
+  disp.textContent = '📅 ' + DateTH.formatRange(s, e, {month:'short'});
+}
+
+function closeAddRun(){
+  document.getElementById('addRunModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeModalOutsideRun(e){
+  if(e.target === document.getElementById('addRunModal')) closeAddRun();
+}
+
+async function saveRun(){
+  const year        = document.getElementById('ar_year').value || currentActiveYear();
+  const courseNum   = document.getElementById('ar_courseNum').value;
+  const courseTitle = document.getElementById('ar_courseTitle').value;
+  const batch       = document.getElementById('ar_batch').value.trim();
+  const runid       = document.getElementById('ar_runid').value.trim();
+  const planId      = document.getElementById('ar_planId').value.trim();
+  const dateStart   = document.getElementById('ar_date_start').value;
+  const dateEnd     = document.getElementById('ar_date_end').value;
+  const location    = document.getElementById('ar_location').value.trim();
+
+  if(!batch){ alert('กรุณากรอกรุ่นที่ก่อนบันทึก'); return; }
+  if(!runid){ alert('กรุณากรอกเลขที่หลักสูตร (8 หลัก) ก่อนบันทึก'); return; }
+
+  const btn = document.getElementById('btnSaveRun');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังบันทึก...';
+
+  const sheetData = {
+    no: runid,
+    course: courseTitle,
+    batch,
+    courseNum: courseNum ? parseInt(courseNum) : '',
+    year: String(year),
+    planId: planId || '',
+    dateStart: dateStart || '',
+    dateEnd: dateEnd || '',
+    location: location || '',
+    savedAt: new Date().toISOString()
+  };
+
+  // gsApi คืน null ถ้าเชื่อมต่อ/บันทึกไม่สำเร็จ (ไม่ throw แล้ว) — เช็คผลลัพธ์ตรงๆ แทน try/catch
+  const result = await gsApi('updateCourseField', sheetData, runid);
+  if (result) {
+    closeAddRun();
+    await loadGsCourses(); // reload การ์ดทั้งหมด เพื่อแสดงรุ่นใหม่ทันที
+  } else {
+    alert('บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่');
+  }
+  btn.disabled = false;
+  btn.textContent = '✅ บันทึกรุ่นใหม่';
+}
+
+/* ── goDetail: ดึงข้อมูลจาก Google Sheet แล้วส่งไป 01 ── */
+async function goDetail(runid){
+  // หา btn ที่คลิก
+  const btns = document.querySelectorAll('.detail-btn');
+  let btn = null;
+  btns.forEach(b => { if(b.getAttribute('onclick') && b.getAttribute('onclick').includes(runid)) btn = b; });
+  if(btn){ btn.textContent = '⏳ โหลด...'; btn.disabled = true; }
+
+  let courseData = null;
+
+  // ลองดึงจาก Google Sheet ก่อน (gsApi คืน null ถ้าเชื่อมต่อไม่สำเร็จ ไม่ throw แล้ว)
+  const gsRow = await gsApi('getByNo', null, runid);
+  if(gsRow && gsRow.course && gsRow.course.course){
+    const cr = gsRow.course;
+    const ds = DateTH.normalize(cr.dateStart);
+    const de = DateTH.normalize(cr.dateEnd);
+    const dateCombo = ds && de && ds !== de ? ds + '_' + de : (ds || '');
+    courseData = {
+      course: cr.course || '',
+      batch: cr.batch || '',
+      no: runid,
+      date: dateCombo,
+      dateStart: ds,
+      dateEnd: de,
+      location: cr.location || '',
+      _fromCourseList: true
+    };
+  }
+
+  // fallback: หาจาก localStorage
+  if(!courseData){
+    try{
+      const slots = JSON.parse(localStorage.getItem('tms_saved_slots')) || [];
+      const s = slots.find(s => s.no === runid);
+      if(s) courseData = { ...s, _fromCourseList: true };
+    }catch{}
+  }
+
+  // fallback สุดท้าย: ส่งแค่ runid
+  if(!courseData){
+    courseData = { no: runid, course:'', batch:'', date:'', dateStart:'', dateEnd:'', location:'', _fromCourseList: true };
+  }
+
+  sessionStorage.setItem('courseData', JSON.stringify(courseData));
+  window.location.href = '01.Main-Reports.html';
+}
+/* ============================================================
+   LOAD & RENDER COURSES FROM GOOGLE SHEET
+   ============================================================ */
+
+/* เลขที่หลักสูตรที่ฝังอยู่ใน HTML แล้ว (hardcoded) */
+const HARDCODED_RUNS = new Set(); // ไม่มี card hardcode ใน HTML แล้ว — ทุกอย่างมาจาก GS
+
+/* แปลง ISO/Excel dateStart/dateEnd → YYYY-MM-DD */
+function normDate(v) {
+  return DateTH.normalize(v);
+}
+
+/* แปลง YYYY-MM-DD → "19 พ.ค. 2569" */
+function thDateShort(iso) {
+  return DateTH.format(iso, {month:'short'});
+}
+
+/* แปลงช่วงวันที่ ds–de → รูปแบบไทยแบบกระชับ (ดูรายละเอียดใน js/date-th.js) */
+function thDateRange(dsIso, deIso) {
+  return DateTH.formatRange(dsIso, deIso, {month:'short'});
+}
+
+/* สร้าง course card HTML จากข้อมูล GS row */
+/* รับ "group" ของรุ่น (array ของ course rows ที่อยู่หลักสูตรเดียวกัน) → สร้าง 1 card */
+function buildGsCourseCard(group) {
+  // เรียงแถวในตารางตามเลขที่หลักสูตร (no) จากน้อยไปมาก
+  const runs = [...group].sort((a, b) => String(a.no).localeCompare(String(b.no)));
+  const head = runs[0]; // ใช้ข้อมูลแถวแรกเป็นตัวแทน header (ชื่อหลักสูตร/courseNum)
+
+  // รวมช่วงวันที่ทั้งหมดของกลุ่ม เพื่อแสดงสรุปบน header (เผื่อหลายรุ่นคนละวัน)
+  const allDates = runs.map(r => normDate(r.dateStart)).filter(Boolean).sort();
+  const headerDateRange = allDates.length
+    ? thDateRange(allDates[0], allDates[allDates.length-1])
+    : '';
+
+  const courseLabel = head.courseNum ? 'หลักสูตรที่ ' + head.courseNum : 'เลขที่ ' + head.no;
+  const groupKey = head.courseNum ? String(head.courseNum) : head.no; // ใช้ผูกปุ่ม +เพิ่มรุ่น
+  const yearVal = head.year || '';
+  const planIdVal = head.planId || '';
+
+  const rows = runs.map(cr => {
+    const ds = normDate(cr.dateStart);
+    const de = normDate(cr.dateEnd);
+    const dateDisplay = thDateRange(ds, de);
+    const runid = cr.no;
+    return `
+          <tr>
+            <td class="center run-badge">${cr.batch || '—'}</td>
+            <td class="mono">${runid}</td>
+            <td class="center">${dateDisplay || '—'}</td>
+            <td>${cr.location || '—'}</td>
+            <td class="center">
+              <button class="attach-btn" id="abtn-${runid}" onclick="showUnderConstructionPopup()">📎 แนบไฟล์</button>
+            </td>
+            <td class="center">
+              <button class="detail-btn" onclick="goDetail('${runid}')">📊 รายละเอียด</button>
+            </td>
+          </tr>`;
+  }).join('');
+
+  return `
+  <div class="course-card" id="gscard-${groupKey}" data-coursenum="${head.courseNum || ''}" data-coursetitle="${(head.course||'').replace(/"/g,'&quot;')}" data-year="${yearVal}" data-planid="${planIdVal}">
+    <div class="course-header">
+      <button class="btn-add-run" onclick="openAddRun('${groupKey}','${yearVal}')"><span class="icon-circle">＋</span> เพิ่มรุ่น</button>
+      <div class="course-no">${courseLabel}</div>
+      <div class="course-title">${head.course || '(ไม่มีชื่อหลักสูตร)'}</div>
+      <div class="course-meta-row">
+        <span class="course-tag">📋 ${runs.length} รุ่น</span>
+        ${headerDateRange ? `<span class="course-tag">🗓 ${headerDateRange}</span>` : ''}
+        ${planIdVal ? `<span class="course-tag">🔗 แผน ${planIdVal}</span>` : ''}
+      </div>
+    </div>
+    <div class="run-table-wrap">
+      <table class="run-table">
+        <thead>
+          <tr>
+            <th style="width:75px">รุ่นที่</th>
+            <th style="width:130px">เลขที่หลักสูตร</th>
+            <th style="width:180px">วันที่อบรม</th>
+            <th class="left">สถานที่</th>
+            <th style="width:90px">ไฟล์แนบ</th>
+            <th style="width:100px">รายงาน</th>
+          </tr>
+        </thead>
+        <tbody>${rows}
+        </tbody>
+      </table>
+    </div>
+    ${runs.map(cr => `<div class="file-panel" id="files-${cr.no}"></div>`).join('')}
+  </div>`;
+}
+
+/* จัดกลุ่ม courses array ตาม courseNum (ถ้าไม่มี courseNum ให้แยกเดี่ยวตาม no) */
+function groupCoursesByNum(courses) {
+  const groups = {};
+  const order = [];
+  courses.forEach(cr => {
+    const key = cr.courseNum ? 'cn:' + cr.courseNum : 'no:' + cr.no;
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push(cr);
+  });
+  return order.map(k => groups[k]);
+}
+
+async function loadGsCourses() {
+  const ALL_YEARS = ['2570','2569'];
+  showGsLoader('📥 กำลังโหลดข้อมูลหลักสูตร');
+
+  try {
+    const result = await gsApi('getCourses', null, null);
+    hideGsLoader();
+
+    if (!result || !result.courses || !result.courses.length) {
+      ALL_YEARS.forEach(yr => {
+        const el = document.getElementById('gs-empty-' + yr);
+        if (el) el.style.display = 'block';
+      });
+      return;
+    }
+
+    // กรองเฉพาะที่ไม่ใช่ hardcoded
+    const newCourses = result.courses.filter(cr => cr.no && !HARDCODED_RUNS.has(String(cr.no)));
+
+    // แยกตาม year แล้ว inject แต่ละ panel
+    ALL_YEARS.forEach(yr => {
+      const container = document.getElementById('gs-courses-' + yr);
+      const emptyEl   = document.getElementById('gs-empty-' + yr);
+      if (!container) return;
+
+      // normalize year จาก GS — อาจมาเป็น number, string, "'2569", หรือ Date
+      function normYear(v) {
+        if (!v && v !== 0) return '';
+        if (v instanceof Date) return String(v.getFullYear() + 543);
+        const s = String(v).replace(/^'+/, '').trim(); // ตัด apostrophe นำหน้า
+        if (/^\d{4}$/.test(s)) return s;             // "2569" → "2569"
+        // กรณีเป็น ISO date string (เกิดจาก Sheets แปลงเป็น Date)
+        const m = s.match(/^(\d{4})-/);
+        if (m) return String(parseInt(m[1]) + 543);
+        return s;
+      }
+
+      const yearCourses = newCourses.filter(cr => {
+        const crYear = normYear(cr.year);
+        if (crYear) return crYear === yr;
+        // fallback: เดาจาก dateStart
+        if (cr.dateStart) {
+          const ds = String(cr.dateStart);
+          const dm = ds.match(/(\d{4})/);
+          if (dm) return String(parseInt(dm[1]) + 543) === yr;
+        }
+        // ไม่มีข้อมูลปีเลย → ปีล่าสุด
+        return yr === ALL_YEARS[0];
+      });
+
+      if (!yearCourses.length) {
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+      }
+
+      // เรียงตาม courseNum ก่อน group
+      yearCourses.sort((a, b) => {
+        const na = a.courseNum ? parseInt(a.courseNum) : 9999;
+        const nb = b.courseNum ? parseInt(b.courseNum) : 9999;
+        if (na !== nb) return na - nb;
+        return String(a.no).localeCompare(String(b.no)); // เลขที่หลักสูตรรองลงมา
+      });
+
+      // จัดกลุ่มรุ่นที่ courseNum เดียวกันให้อยู่ card เดียวกัน
+      const groups = groupCoursesByNum(yearCourses);
+
+      container.innerHTML = groups.map(buildGsCourseCard).join('');
+    });
+
+  } catch(e) {
+    hideGsLoader();
+    console.warn('loadGsCourses error:', e);
+  }
+}
+
+/* โหลด GS courses ตอนเปิดหน้า */
+document.addEventListener('DOMContentLoaded', () => {
+  loadGsCourses();
+  loadAnnualPlanList(); // preload ไว้ล่วงหน้า ให้ดรอปดาวน์เลือกแผนเปิดใช้ได้ทันทีตอนกดปุ่มเพิ่มหลักสูตร/เพิ่มรุ่น
+});
+loadCurrentUser();
+</script>
+</body>
+</html>

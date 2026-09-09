@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ค่าวัสดุเบ็ดเตล็ด — กฝภ.1</title>
+<title>ค่าใช้จ่ายตาม ว.119 — กฝภ.1</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
 <!-- ── Shared modules (ต้องเรียงลำดับนี้เสมอ: config -> supabase SDK -> auth/date/gas-api/schema) ── -->
@@ -110,7 +110,7 @@ body{font-family:'Sarabun',sans-serif;background:#f3f4f6;color:#1e2533;font-size
     <div class="header-title">
       <div class="header-icon">📄</div>
       <div class="header-text">
-        <h1>ค่าวัสดุเบ็ดเตล็ด — แบบพิมพ์</h1>
+        <h1>ค่าใช้จ่ายตาม ว.119</h1>
         <p>การประปาส่วนภูมิภาค (กปภ.) · กองฝึกอบรมภูมิภาค 1</p>
       </div>
     </div>
@@ -537,11 +537,11 @@ async function savePdf(btn){
   const el = document.getElementById('doc-display');
   if(!el || !el.innerHTML.trim()){ alert('ไม่พบข้อมูลเอกสาร'); return; }
 
-  const title  = gv('f_title') || 'ค่าวัสดุเบ็ดเตล็ด';
+  const title  = gv('f_title') || 'ค่าใช้จ่ายตาม ว.119';
   const run    = gv('f_run')   || '';
   const runno  = gv('f_runno') || '';
   const safe   = s => s.replace(/[/\\:*?"<>|]/g,'_').trim();
-  const fname  = safe(`วัสดุเบ็ดเตล็ด_${title}_รุ่น${run}_${runno}`) || 'sec2_misc';
+  const fname  = safe(`ค่าใช้จ่ายตาม ว.119_${title}_รุ่น${run}_${runno}`) || 'sec2_misc';
 
   btn.disabled = true; btn.textContent = '⏳ กำลังสร้าง...';
 

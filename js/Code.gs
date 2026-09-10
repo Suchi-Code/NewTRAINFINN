@@ -541,3 +541,79 @@ function checkLogin(user, pass) {
     return { ok: false, msg: 'ข้อผิดพลาดระบบ: ' + e.message };
   }
 }
+// ⚠️ โฟลเดอร์ปลายทางที่ผู้ดูแลระบบสร้างไว้เองแล้วใน Google Drive (ผูกตรงด้วย Folder ID
+// ไม่ใช่ค้นหา/สร้างใหม่ตามชื่อ — ถ้าต้องการเปลี่ยนปลายทางในอนาคต แก้ ID ตรงนี้ที่เดียวพอ)
+// ที่มา: https://drive.google.com/drive/folders/1hC53YaOrRIXlK1az7_RVNSIiwL5RdXHt
+const BACKUP_FOLDER_ID        = '1hC53YaOrRIXlK1az7_RVNSIiwL5RdXHt';
+const BACKUP_RETENTION_DAYS   = 90;   // ลบไฟล์ backup ที่เก่ากว่านี้อัตโนมัติ
+
+/**
+ * backupSpreadsheet() — คัดลอกทั้งไฟล์ Google Sheet ไปเก็บใน BACKUP_FOLDER_ID
+ * ตั้งชื่อไฟล์ด้วยวันที่-เวลา ถูกเรียกอัตโนมัติจาก time-driven trigger วันละ 1 ครั้ง
+ * (เรียกเองได้เช่นกันถ้าต้องการทดสอบ — เลือกฟังก์ชันนี้แล้วกด Run ได้ทันที ไม่ต้องรอ trigger)
+ */
+function backupSpreadsheet() {
+  const folder   = getBackupFolder();
+  const original = DriveApp.getFileById(SPREADSHEET_ID);
+
+  const tz = SpreadsheetApp.openById(SPREADSHEET_ID).getSpreadsheetTimeZone() || 'Asia/Bangkok';
+  const timestamp  = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd_HHmm');
+  const backupName = `TMS_TrainingData_backup_${timestamp}`;
+
+  original.makeCopy(backupName, folder);
+  Logger.log('Backup created: ' + backupName + ' -> folder ' + BACKUP_FOLDER_ID);
+
+  cleanupOldBackups(folder);
+}
+
+/**
+ * getBackupFolder() — เปิดโฟลเดอร์ปลายทางตาม BACKUP_FOLDER_ID ตรงๆ
+ * ถ้าเปิดไม่ได้ (ID ผิด / ถูกลบ / บัญชีที่รัน trigger ไม่มีสิทธิ์เข้าถึง) จะโยน error ทันที
+ * แทนการเงียบๆ ไปสร้างโฟลเดอร์ใหม่ที่อื่น เพื่อไม่ให้ backup กระจายไปหลายที่โดยไม่รู้ตัว
+ */
+function getBackupFolder() {
+  try {
+    return DriveApp.getFolderById(BACKUP_FOLDER_ID);
+  } catch (e) {
+    throw new Error('เปิดโฟลเดอร์ backup ไม่ได้ (ID: ' + BACKUP_FOLDER_ID + ') — เช็คว่า ID ถูกต้อง '
+      + 'และบัญชีที่รัน Apps Script นี้มีสิทธิ์เข้าถึงโฟลเดอร์นี้หรือไม่: ' + e.message);
+  }
+}
+
+/**
+ * cleanupOldBackups(folder) — ลบไฟล์ backup ที่เก่าเกิน BACKUP_RETENTION_DAYS วัน (ย้ายลงถังขยะ
+ * ของ Google Drive — กู้คืนได้เองภายใน 30 วันถัดมาถ้าลบพลาด ตาม policy มาตรฐานของ Google Drive)
+ * เช็คเฉพาะไฟล์ที่ชื่อขึ้นต้นด้วย prefix ของสคริปต์นี้เท่านั้น ไม่แตะไฟล์อื่นในโฟลเดอร์เดียวกัน
+ */
+function cleanupOldBackups(folder) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - BACKUP_RETENTION_DAYS);
+
+  const it = folder.getFiles();
+  let deletedCount = 0;
+
+  while (it.hasNext()) {
+    const f = it.next();
+    if (f.getName().indexOf('TMS_TrainingData_backup_') === 0 && f.getDateCreated() < cutoff) {
+      f.setTrashed(true);
+      deletedCount++;
+    }
+  }
+  if (deletedCount > 0) Logger.log('Deleted old backups: ' + deletedCount);
+}
+
+/**
+ * setupDailyBackupTrigger() — รันฟังก์ชันนี้ "ครั้งเดียว" จาก Apps Script Editor เพื่อตั้ง
+ * trigger อัตโนมัติ รันทุกวันในช่วงตี 1-2 (Apps Script สุ่มเวลาแม่นยำในชั่วโมงที่กำหนดเอง
+ * เพื่อกระจายโหลดของ Google ไม่ให้ทุกโปรเจกต์รันชนกันเป๊ะเวลาเดียวกันหมด — เป็นพฤติกรรมปกติ)
+ * ⚠️ ห้ามรันฟังก์ชันนี้ซ้ำหลังตั้งสำเร็จแล้ว จะได้ trigger ซ้ำ 2 ตัว (ถ้าต้องการรันใหม่ ให้ลบ
+ * trigger เดิมออกก่อนที่เมนู Triggers ทางซ้ายของ Apps Script Editor)
+ */
+function setupDailyBackupTrigger() {
+  ScriptApp.newTrigger('backupSpreadsheet')
+    .timeBased()
+    .everyDays(1)
+    .atHour(1)
+    .create();
+  Logger.log('Daily backup trigger created — runs once per day around 01:00 (per project timezone setting)');
+}

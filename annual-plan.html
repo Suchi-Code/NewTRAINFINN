@@ -122,6 +122,11 @@
     .icon-btn.edit:hover{background:#0b6aab;color:#fff;box-shadow:0 4px 10px rgba(11,106,171,.35);transform:translateY(-1px)}
     .icon-btn.view{background:#eafaf5;color:#0f8a73;border-color:#c9ecdc}
     .icon-btn.view:hover{background:#0f8a73;color:#fff;box-shadow:0 4px 10px rgba(15,138,115,.35);transform:translateY(-1px)}
+    .icon-btn.del{background:#fdeeea;color:#c4562f;border-color:#f3cfc0}
+    .icon-btn.del:hover{background:#c4562f;color:#fff;box-shadow:0 4px 10px rgba(196,86,47,.35);transform:translateY(-1px)}
+
+    .btn-add-plan{background:#0b6aab;color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;transition:.15s;white-space:nowrap}
+    .btn-add-plan:hover{background:#07598f}
 
     .empty{padding:38px;text-align:center;color:var(--muted)}
 
@@ -232,6 +237,18 @@
     .modal-body{padding:20px 22px}
     .finance-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:18px}
     .finance{border:1px solid var(--line);border-radius:8px;padding:12px}
+
+    /* ===== เพิ่ม/แก้ไข แผนงาน (modal form) ===== */
+    .plan-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .plan-field{display:flex;flex-direction:column;gap:5px}
+    .plan-field.plan-wide{grid-column:1/-1}
+    .plan-field label{font-size:12px;font-weight:600;color:var(--muted)}
+    .plan-field input,.plan-field select,.plan-field textarea{border:1px solid #cfdbe3;border-radius:7px;padding:9px 11px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff}
+    .plan-field input:focus,.plan-field select:focus,.plan-field textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px #e5f3fb}
+    .plan-field input:disabled{background:#f3f6f8;color:#8f9aa6;cursor:not-allowed}
+    .plan-inline-btn{border:1px solid #ccd9e0;background:#fff;color:#506978;border-radius:7px;padding:0 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+    .plan-inline-btn:hover{background:#f5f8fa;border-color:#b9cddb}
+    .plan-cancel-link{background:transparent;border:0;color:var(--blue);font-size:11.5px;text-decoration:underline;cursor:pointer;padding:0;margin-top:5px}
     .finance label{display:block;color:var(--muted);font-size:12px}
     .finance strong{font-size:19px;color:var(--navy);margin-top:5px;display:block}
     .finance.remaining{background:#eef8f4;border-color:#c6e6d8}
@@ -287,8 +304,11 @@
 
     <section class="panel">
       <div class="panel-head">
-        <div><h2>ตารางแผนงานและหลักสูตรฝึกอบรม</h2><p>ข้อมูลอ่านอย่างเดียว — แก้ไขได้ที่ Google Sheets โดยผู้ดูแลระบบเท่านั้น</p></div>
-        <span class="count-chip" id="headCount">— รายการ</span>
+        <div><h2>ตารางแผนงานและหลักสูตรฝึกอบรม</h2><p>เพิ่ม / แก้ไข / ลบรายการได้โดยตรงจากหน้านี้ — ข้อมูลจะถูกบันทึกกลับ Google Sheets ทันที</p></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn-add-plan" onclick="openAddPlanModal()">＋ เพิ่มรายการ</button>
+          <span class="count-chip" id="headCount">— รายการ</span>
+        </div>
       </div>
       <div class="controls">
         <div class="filters">
@@ -310,9 +330,9 @@
             <th>งบประมาณตามแผน<br><span style="font-weight:400;opacity:.78">รวม คชจ. (บาท)</span></th>
             <th>อนุมัติ<br><span style="font-weight:400;opacity:.78">(บาท)</span></th>
             <th>ใช้จริง<br><span style="font-weight:400;opacity:.78">(บาท)</span></th>
-            <th>เลขที่หลักสูตร</th><th>รายละเอียด</th>
+            <th>เลขที่หลักสูตร</th><th>รายละเอียด</th><th>จัดการ</th>
           </tr></thead>
-          <tbody id="planRows"><tr><td colspan="14" class="empty"></td></tr></tbody>
+          <tbody id="planRows"><tr><td colspan="15" class="empty"></td></tr></tbody>
         </table>
       </div>
     </section>
@@ -377,6 +397,122 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════
+     MODAL เพิ่ม / แก้ไข รายการแผนงานประจำปี
+════════════════════════════════════════ -->
+<div id="planModal" class="modal-backdrop" onclick="backdrop(event,this)">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-head">
+      <div><h3 id="planModalTitle">เพิ่มรายการแผนงาน</h3><p>ปีงบประมาณ <span id="planModalYear">2570</span></p></div>
+      <button class="close" onclick="closePlanModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pf_planId">
+
+      <div class="plan-form-grid">
+        <div class="plan-field">
+          <label>ปีงบประมาณ *</label>
+          <select id="pf_year" onchange="refreshPlanIdPreview()">
+            <option value="2570">2570</option>
+            <option value="2569">2569</option>
+          </select>
+        </div>
+        <div class="plan-field">
+          <label>เลขที่แผน (planId — ระบบตั้งให้อัตโนมัติ)</label>
+          <input type="text" id="pf_planIdDisplay" disabled>
+        </div>
+
+        <div class="plan-field plan-wide">
+          <label>หมวด (program) *</label>
+          <div style="display:flex;gap:6px">
+            <select id="pf_program_select" onchange="onProgramSelectChange()" style="flex:1"></select>
+            <button type="button" class="plan-inline-btn" onclick="toggleNewProgram(true)">＋ หมวดใหม่</button>
+          </div>
+          <input type="text" id="pf_program_new" placeholder="พิมพ์ชื่อหมวดใหม่" style="display:none;margin-top:2px">
+          <button type="button" id="pf_program_cancel" class="plan-cancel-link" style="display:none" onclick="toggleNewProgram(false)">ยกเลิก ใช้หมวดที่มีอยู่แล้ว</button>
+        </div>
+
+        <div class="plan-field plan-wide">
+          <label>กลุ่มย่อย (section) *</label>
+          <div style="display:flex;gap:6px">
+            <select id="pf_section_select" onchange="onSectionSelectChange()" style="flex:1"></select>
+            <button type="button" class="plan-inline-btn" onclick="toggleNewSection(true)">＋ กลุ่มใหม่</button>
+          </div>
+          <input type="text" id="pf_section_new" placeholder="พิมพ์ชื่อกลุ่มใหม่" style="display:none;margin-top:2px">
+          <button type="button" id="pf_section_cancel" class="plan-cancel-link" style="display:none" onclick="toggleNewSection(false)">ยกเลิก ใช้กลุ่มที่มีอยู่แล้ว</button>
+        </div>
+
+        <div class="plan-field plan-wide">
+          <label>ชื่อหลักสูตร / โครงการ *</label>
+          <input type="text" id="pf_name" placeholder="ระบุชื่อหลักสูตร">
+        </div>
+
+        <div class="plan-field">
+          <label>ประเภท</label>
+          <select id="pf_type"><option value="">— ไม่ระบุ —</option><option value="Core">Core</option><option value="QW">QW</option><option value="TN">TN</option></select>
+        </div>
+        <div class="plan-field">
+          <label>กลุ่มเป้าหมาย</label>
+          <input type="text" id="pf_target" placeholder="เช่น เจ้าหน้าที่ระดับ 4-6">
+        </div>
+
+        <div class="plan-field">
+          <label>ผู้เข้าอบรมตามแผน (คน)</label>
+          <input type="number" id="pf_people" value="0" min="0">
+        </div>
+        <div class="plan-field">
+          <label>รูปแบบการจัด</label>
+          <select id="pf_form">
+            <option value="onsite">Onsite</option>
+            <option value="online">Online</option>
+            <option value="onsite+online">Onsite + Online</option>
+            <option value="Public Training">Public Training</option>
+            <option value="Workshop & OJT">Workshop &amp; OJT</option>
+          </select>
+        </div>
+
+        <div class="plan-field">
+          <label>ไตรมาสที่จัด</label>
+          <select id="pf_quarter"><option value="1">ไตรมาส 1</option><option value="2">ไตรมาส 2</option><option value="3">ไตรมาส 3</option><option value="4">ไตรมาส 4</option></select>
+        </div>
+        <div class="plan-field">
+          <label>จำนวนครั้ง</label>
+          <input type="number" id="pf_times" value="1" min="1">
+        </div>
+
+        <div class="plan-field">
+          <label>จำนวนวัน / รุ่น</label>
+          <input type="number" id="pf_days" value="1" min="1">
+        </div>
+        <div class="plan-field">
+          <label>ค่าดำเนินการ (บาท)</label>
+          <input type="number" id="pf_operation" value="0" min="0" oninput="syncPlanTotalPreview()">
+        </div>
+
+        <div class="plan-field">
+          <label>ค่าเดินทาง (บาท)</label>
+          <input type="number" id="pf_travel" value="0" min="0" oninput="syncPlanTotalPreview()">
+        </div>
+        <div class="plan-field">
+          <label>งบประมาณตามแผนรวม (อัตโนมัติ)</label>
+          <input type="text" id="pf_planTotalDisplay" disabled>
+        </div>
+
+        <div class="plan-field plan-wide">
+          <label>หมายเหตุ</label>
+          <textarea id="pf_note" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div id="planFormMsg" class="inline-msg-plan" style="display:none;margin-top:12px;font-size:12.5px;padding:9px 13px;border-radius:7px;background:#fdeeea;color:#c0364f;border:1px solid #f3c7cf"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="secondary" onclick="closePlanModal()">ยกเลิก</button>
+      <button class="btn-add-plan" id="btnSavePlan" onclick="savePlanItem()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    STATE — โหลดจาก Google Sheet เท่านั้น (annual_plan + courses + getPlanSummary)
@@ -411,7 +547,7 @@ async function loadAnnualPlanData(){
   if (planList === null) {
     hideGsLoader();
     document.getElementById('planRows').innerHTML =
-      '<tr><td colspan="14" class="empty">⚠️ เชื่อมต่อไม่สำเร็จ ' +
+      '<tr><td colspan="15" class="empty">⚠️ เชื่อมต่อไม่สำเร็จ ' +
       '<button onclick="loadAnnualPlanData()" style="border:0;background:transparent;color:#0b6aab;text-decoration:underline;cursor:pointer;font:inherit">ลองใหม่</button></td></tr>';
     return;
   }
@@ -438,6 +574,7 @@ async function loadAnnualPlanData(){
     const travel = numify(p.travel);
     return {
       planId  : pid,
+      year    : String(p.year || '').trim() || (pid.length >= 4 ? pid.slice(0,4) : ''),
       program : p.program || '(ไม่ระบุโครงการ)',
       section : p.section || '(ไม่ระบุหมวด)',
       name    : p.name || '(ไม่มีชื่อหลักสูตร)',
@@ -475,8 +612,8 @@ function render(){
 
   let out='',lastP='',lastS='',idx=0;
   shown.forEach(c=>{
-    if(c.program!==lastP){out+=`<tr class="program"><td colspan="14">${esc(c.program)}</td></tr>`;lastP=c.program;lastS=''}
-    if(c.section!==lastS){out+=`<tr class="section"><td colspan="14">${esc(c.section)}</td></tr>`;lastS=c.section}
+    if(c.program!==lastP){out+=`<tr class="program"><td colspan="15">${esc(c.program)}</td></tr>`;lastP=c.program;lastS=''}
+    if(c.section!==lastS){out+=`<tr class="section"><td colspan="15">${esc(c.section)}</td></tr>`;lastS=c.section}
     idx++;
 
     const codesHtml = c.linkedCourses.length
@@ -501,10 +638,14 @@ function render(){
       <td><div class="actions">
         <button title="รายละเอียดงบประมาณ" class="icon-btn view" onclick="openDetail('${esc(c.planId)}')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button>
       </div></td>
+      <td><div class="actions">
+        <button title="แก้ไขรายการ" class="icon-btn edit" onclick="openEditPlanModal('${esc(c.planId)}')"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+        <button title="ลบรายการ" class="icon-btn del" onclick="deletePlanItem('${esc(c.planId)}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+      </div></td>
     </tr>`;
   });
 
-  document.getElementById('planRows').innerHTML=out||'<tr><td colspan="14" class="empty">ไม่พบข้อมูลที่ค้นหา</td></tr>';
+  document.getElementById('planRows').innerHTML=out||'<tr><td colspan="15" class="empty">ไม่พบข้อมูลที่ค้นหา</td></tr>';
   document.getElementById('resultLabel').textContent=`แสดง ${shown.length} จาก ${allPlans.length} รายการ`;
   document.getElementById('headCount').textContent=fmt(allPlans.length)+' รายการ';
   document.getElementById('courseCount').textContent=fmt(allPlans.length)+' รายการ';
@@ -705,6 +846,239 @@ function openDetail(planId){
 
   document.getElementById('detailNote').textContent = current.note || 'ไม่มีหมายเหตุเพิ่มเติม';
   document.getElementById('detailModal').classList.add('show');
+}
+
+/* ============================================================
+   เพิ่ม / แก้ไข / ลบ รายการแผนงานประจำปี — เขียนกลับ Google Sheet "annual_plan"
+   ผ่าน action saveAnnualPlan/deleteAnnualPlan (Code.gs) คีย์หลักคือ planId
+   ============================================================ */
+let _planEditingId = null; // null = โหมดเพิ่มใหม่, ไม่ null = กำลังแก้ไข planId นี้
+const PLAN_PLACEHOLDER_PROGRAM = '(ไม่ระบุโครงการ)';
+const PLAN_PLACEHOLDER_SECTION = '(ไม่ระบุหมวด)';
+
+function getDistinctPrograms(){
+  const set = new Set();
+  allPlans.forEach(p=>{ if(p.program && p.program!==PLAN_PLACEHOLDER_PROGRAM) set.add(p.program); });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'th'));
+}
+function getDistinctSections(program){
+  const set = new Set();
+  allPlans.forEach(p=>{
+    if(!p.section || p.section===PLAN_PLACEHOLDER_SECTION) return;
+    if(program && p.program!==program) return;
+    set.add(p.section);
+  });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'th'));
+}
+
+function populateProgramSelect(selected){
+  const sel = document.getElementById('pf_program_select');
+  const progs = getDistinctPrograms();
+  sel.innerHTML = progs.length
+    ? progs.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')
+    : '<option value="">— ยังไม่มีหมวด กด "หมวดใหม่" —</option>';
+  if(selected && progs.includes(selected)) sel.value = selected;
+}
+function populateSectionSelect(program, selected){
+  const sel = document.getElementById('pf_section_select');
+  const secs = getDistinctSections(program);
+  sel.innerHTML = secs.length
+    ? secs.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')
+    : '<option value="">— ยังไม่มีกลุ่ม กด "กลุ่มใหม่" —</option>';
+  if(selected && secs.includes(selected)) sel.value = selected;
+}
+function onProgramSelectChange(){
+  populateSectionSelect(document.getElementById('pf_program_select').value, '');
+}
+function onSectionSelectChange(){ /* เผื่อขยายในอนาคต — ตอนนี้ไม่ต้องทำอะไรเพิ่ม */ }
+
+function toggleNewProgram(show){
+  document.getElementById('pf_program_select').style.display = show ? 'none' : '';
+  document.getElementById('pf_program_new').style.display    = show ? '' : 'none';
+  document.getElementById('pf_program_cancel').style.display = show ? '' : 'none';
+  if(show){ document.getElementById('pf_program_new').value=''; document.getElementById('pf_program_new').focus(); }
+  else onProgramSelectChange();
+}
+function toggleNewSection(show){
+  document.getElementById('pf_section_select').style.display = show ? 'none' : '';
+  document.getElementById('pf_section_new').style.display    = show ? '' : 'none';
+  document.getElementById('pf_section_cancel').style.display = show ? '' : 'none';
+  if(show){ document.getElementById('pf_section_new').value=''; document.getElementById('pf_section_new').focus(); }
+}
+
+function getEffectiveProgram(){
+  const newEl = document.getElementById('pf_program_new');
+  return newEl.style.display !== 'none' ? newEl.value.trim() : document.getElementById('pf_program_select').value.trim();
+}
+function getEffectiveSection(){
+  const newEl = document.getElementById('pf_section_new');
+  return newEl.style.display !== 'none' ? newEl.value.trim() : document.getElementById('pf_section_select').value.trim();
+}
+
+/* ── planId auto-run: "<ปี พ.ศ. 4 หลัก><เลขรัน 3 หลัก>" เช่น 2570001, 2570002
+   คำนวณจากข้อมูลที่โหลดมาในหน่วยความจำ (allPlans) เท่านั้น ไม่ยิง API แยกขอเลข —
+   ยอมรับความเสี่ยงเลขซ้ำถ้ามีคนกดเพิ่มพร้อมกันตรงเป๊ะ (ตกลงกันไว้แล้วว่าไม่กังวลจุดนี้) ── */
+function computeNextPlanId(year){
+  const yr = String(year);
+  let maxSeq = 0;
+  allPlans.forEach(p=>{
+    const pid = String(p.planId||'');
+    if(pid.startsWith(yr) && pid.length === yr.length + 3){
+      const seq = parseInt(pid.slice(yr.length), 10);
+      if(!isNaN(seq)) maxSeq = Math.max(maxSeq, seq);
+    }
+  });
+  return yr + String(maxSeq + 1).padStart(3,'0');
+}
+
+function refreshPlanIdPreview(){
+  const year = document.getElementById('pf_year').value;
+  document.getElementById('planModalYear').textContent = year;
+  document.getElementById('pf_planIdDisplay').value = _planEditingId || computeNextPlanId(year);
+}
+
+function syncPlanTotalPreview(){
+  const op = parseFloat(document.getElementById('pf_operation').value)||0;
+  const tr = parseFloat(document.getElementById('pf_travel').value)||0;
+  document.getElementById('pf_planTotalDisplay').value = fmt(op+tr) + ' บาท';
+}
+
+function resetPlanForm(){
+  document.getElementById('pf_planId').value = '';
+  document.getElementById('pf_name').value = '';
+  document.getElementById('pf_type').value = '';
+  document.getElementById('pf_target').value = '';
+  document.getElementById('pf_people').value = 0;
+  document.getElementById('pf_form').value = 'onsite';
+  document.getElementById('pf_quarter').value = '1';
+  document.getElementById('pf_times').value = 1;
+  document.getElementById('pf_days').value = 1;
+  document.getElementById('pf_operation').value = 0;
+  document.getElementById('pf_travel').value = 0;
+  document.getElementById('pf_note').value = '';
+  toggleNewProgram(false);
+  toggleNewSection(false);
+  document.getElementById('planFormMsg').style.display = 'none';
+  syncPlanTotalPreview();
+}
+
+function openAddPlanModal(){
+  _planEditingId = null;
+  resetPlanForm();
+  document.getElementById('planModalTitle').textContent = 'เพิ่มรายการแผนงาน';
+  document.getElementById('pf_year').disabled = false;
+  document.getElementById('pf_year').value = '2570';
+  populateProgramSelect('');
+  populateSectionSelect('', '');
+  refreshPlanIdPreview();
+  document.getElementById('planModal').classList.add('show');
+}
+
+function openEditPlanModal(planId){
+  const p = allPlans.find(x=>x.planId===planId);
+  if(!p) return;
+  _planEditingId = planId;
+  resetPlanForm();
+  document.getElementById('planModalTitle').textContent = 'แก้ไขรายการแผนงาน';
+  document.getElementById('pf_planId').value = planId;
+  document.getElementById('pf_year').value = p.year || planId.slice(0,4) || '2570';
+  document.getElementById('pf_year').disabled = true; // เปลี่ยนปีของรายการเดิมไม่ได้ (planId ผูกปีไว้แล้วตั้งแต่สร้าง)
+  populateProgramSelect(p.program!==PLAN_PLACEHOLDER_PROGRAM ? p.program : '');
+  populateSectionSelect(p.program, p.section!==PLAN_PLACEHOLDER_SECTION ? p.section : '');
+  document.getElementById('pf_name').value = p.name!=='(ไม่มีชื่อหลักสูตร)' ? p.name : '';
+  document.getElementById('pf_type').value = p.type || '';
+  document.getElementById('pf_target').value = p.target || '';
+  document.getElementById('pf_people').value = p.people || 0;
+  document.getElementById('pf_form').value = p.form || 'onsite';
+  document.getElementById('pf_quarter').value = String(p.q||1);
+  document.getElementById('pf_times').value = p.times || 1;
+  document.getElementById('pf_days').value = p.days || 0;
+  document.getElementById('pf_operation').value = p.operation || 0;
+  document.getElementById('pf_travel').value = p.travel || 0;
+  document.getElementById('pf_note').value = p.note || '';
+  syncPlanTotalPreview();
+  refreshPlanIdPreview();
+  document.getElementById('planModal').classList.add('show');
+}
+
+function closePlanModal(){
+  document.getElementById('planModal').classList.remove('show');
+}
+
+async function savePlanItem(){
+  const program = getEffectiveProgram();
+  const section = getEffectiveSection();
+  const name    = document.getElementById('pf_name').value.trim();
+  const msgEl   = document.getElementById('planFormMsg');
+  const showErr = (t) => { msgEl.textContent = t; msgEl.style.display='block'; };
+
+  if(!program){ showErr('⚠️ กรุณาระบุหมวด (program)'); return; }
+  if(!section){ showErr('⚠️ กรุณาระบุกลุ่มย่อย (section)'); return; }
+  if(!name){ showErr('⚠️ กรุณาระบุชื่อหลักสูตร/โครงการ'); return; }
+  msgEl.style.display = 'none';
+
+  const year      = document.getElementById('pf_year').value;
+  const planId    = _planEditingId || document.getElementById('pf_planIdDisplay').value;
+  const operation = parseFloat(document.getElementById('pf_operation').value)||0;
+  const travel    = parseFloat(document.getElementById('pf_travel').value)||0;
+
+  const payload = {
+    planId, year: String(year),
+    program, section, name,
+    type: document.getElementById('pf_type').value || '',
+    target: document.getElementById('pf_target').value.trim(),
+    people: parseInt(document.getElementById('pf_people').value)||0,
+    form: document.getElementById('pf_form').value,
+    quarter: parseInt(document.getElementById('pf_quarter').value)||1,
+    times: parseInt(document.getElementById('pf_times').value)||1,
+    days: parseInt(document.getElementById('pf_days').value)||0,
+    operation, travel,
+    plan: operation + travel,
+    note: document.getElementById('pf_note').value.trim(),
+    savedAt: new Date().toISOString(),
+  };
+
+  const btn = document.getElementById('btnSavePlan');
+  btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...';
+  showGsLoader('💾 กำลังบันทึกแผนงาน');
+  const result = await gsApi('saveAnnualPlan', payload);
+  hideGsLoader();
+  btn.disabled = false; btn.textContent = '💾 บันทึก';
+
+  if(!result){
+    showErr('❌ บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่');
+    return;
+  }
+
+  closePlanModal();
+  showGsStatus('✅ บันทึกรายการแผนงานสำเร็จ', 'ok');
+  await loadAnnualPlanData();
+}
+
+async function deletePlanItem(planId){
+  const p = allPlans.find(x=>x.planId===planId);
+  if(!p) return;
+
+  if(p.linkedCourses && p.linkedCourses.length){
+    const list = p.linkedCourses.map(c=>c.no).join(', ');
+    alert('⚠️ ไม่สามารถลบได้ เพราะแผนนี้มีรุ่นหลักสูตรผูกอยู่แล้ว (เลขที่หลักสูตร: ' + list + ')\n\n'
+      + 'กรุณาไปที่หน้า "หลักสูตรการฝึกอบรม" แล้วเปลี่ยน "ผูกกับแผนงานประจำปี" ของรุ่นเหล่านั้นเป็น '
+      + '"— ไม่ผูกกับแผน —" ก่อน แล้วค่อยกลับมาลบรายการนี้อีกครั้ง');
+    return;
+  }
+
+  if(!confirm('ยืนยันลบรายการ "'+p.name+'" (เลขที่แผน '+planId+') ใช่หรือไม่?\n\nการลบนี้ไม่สามารถย้อนกลับได้')) return;
+
+  showGsLoader('🗑️ กำลังลบรายการ');
+  const result = await gsApi('deleteAnnualPlan', { planId });
+  hideGsLoader();
+
+  if(!result){
+    alert('❌ ลบไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่');
+    return;
+  }
+  showGsStatus('✅ ลบรายการสำเร็จ', 'ok');
+  await loadAnnualPlanData();
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('show')}

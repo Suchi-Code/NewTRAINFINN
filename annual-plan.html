@@ -612,11 +612,41 @@ async function loadAnnualPlanData(){
 /* ============================================================
    RENDER TABLE + SUMMARY CARDS
    ============================================================ */
+/* ── groupStableSort — ดึงแถวที่หมวด (program) / กลุ่ม (section) เดียวกันมาอยู่ติดกันเสมอ
+   ก่อนส่งให้ render() วาดหัวข้อกลุ่ม (แก้ปัญหา: แถวใหม่ที่กด "+ เพิ่มรายการ" ถูกเขียนต่อท้าย
+   Google Sheet จริงๆ เสมอ (physical append) แม้จะเลือกหมวด/กลุ่มเดิมที่มีอยู่แล้วก็ตาม ทำให้อยู่
+   ห่างจากกลุ่มเดิมทางกายภาพ และ render() แบบเดิมที่จัดกลุ่มแบบ "ติดกันเท่านั้นถึงนับเป็นกลุ่มเดียว"
+   จะขึ้นหัวข้อกลุ่มซ้ำ) — ใช้ normalizeGroupText() เทียบเหมือน render() เพื่อความสอดคล้องกัน
+   ยังคง "ลำดับหมวด/กลุ่มที่ปรากฏครั้งแรก" ไว้เหมือนเดิม (ไม่จัดเรียงตามตัวอักษรใหม่ทั้งหมด) และคง
+   ลำดับสัมพัทธ์เดิมของแถวภายในกลุ่มเดียวกันไว้ (stable sort) ── */
+function groupStableSort(rows){
+  const progOrder = new Map(), secOrder = new Map();
+  rows.forEach(c=>{
+    const np = normalizeGroupText(c.program);
+    if(!progOrder.has(np)) progOrder.set(np, progOrder.size);
+    const key = np+'␟'+normalizeGroupText(c.section);
+    if(!secOrder.has(key)) secOrder.set(key, secOrder.size);
+  });
+  return rows
+    .map((c,i)=>({c,i}))
+    .sort((a,b)=>{
+      const pa = progOrder.get(normalizeGroupText(a.c.program));
+      const pb = progOrder.get(normalizeGroupText(b.c.program));
+      if(pa!==pb) return pa-pb;
+      const sa = secOrder.get(normalizeGroupText(a.c.program)+'␟'+normalizeGroupText(a.c.section));
+      const sb = secOrder.get(normalizeGroupText(b.c.program)+'␟'+normalizeGroupText(b.c.section));
+      if(sa!==sb) return sa-sb;
+      return a.i-b.i; // รักษาลำดับเดิมของแถวภายในกลุ่มเดียวกันไว้ (stable)
+    })
+    .map(x=>x.c);
+}
+
 function render(){
   const term=document.getElementById('search').value.toLowerCase(),
         type=document.getElementById('typeFilter').value,
         format=document.getElementById('formatFilter').value;
-  const shown=allPlans.filter(c=>(!type||c.type===type)&&(!format||c.form===format)&&Object.values(c).join(' ').toLowerCase().includes(term));
+  const filtered=allPlans.filter(c=>(!type||c.type===type)&&(!format||c.form===format)&&Object.values(c).join(' ').toLowerCase().includes(term));
+  const shown=groupStableSort(filtered);
 
   let out='',lastP='',lastS='',idx=0;
   shown.forEach(c=>{

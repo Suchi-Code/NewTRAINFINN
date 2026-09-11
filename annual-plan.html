@@ -526,6 +526,14 @@ let typeChartInstance=null,quarterChartInstance=null,formatChartInstance=null,pr
 const fmt = n => new Intl.NumberFormat('th-TH').format(Math.round(n||0));
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
+/* ── normalizeGroupText — แก้บั๊กพิมพ์ภาษาไทยที่ตาเห็นเหมือนกันแต่เป็นคนละอักขระ:
+   "เเ" (สระเอ 2 ตัวติดกัน, U+0E40 ซ้อน) มักถูกพิมพ์แทน "แ" (สระแอ ตัวเดียว, U+0E41)
+   ฟอนต์ส่วนใหญ่ render ออกมาเหมือนกันเป๊ะจนแยกด้วยตาไม่ได้ ทำให้ program/section ที่ผู้ใช้
+   มองว่า "พิมพ์เหมือนกัน" กลับเทียบ string ไม่ตรงกัน (!==) แล้วขึ้นหัวข้อกลุ่มซ้ำในตาราง —
+   ใช้ normalize ก่อนเทียบ "กลุ่มเดียวกันหรือไม่" ทุกจุด (ไม่ใช้ raw string เทียบตรงๆ อีกต่อไป)
+   และ normalize ก่อนบันทึกข้อมูลใหม่ด้วย กันปัญหาเกิดซ้ำในอนาคต ── */
+const normalizeGroupText = s => String(s??'').trim().replace(/\s+/g,' ').replace(/เเ/g,'แ');
+
 /* ── numeric coercion กันเหนียว (gotcha 6.4 — Sheets มักส่งเลขมาเป็น string/มี ' นำหน้า) ── */
 function numify(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
 function intify(v){ const n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
@@ -612,8 +620,9 @@ function render(){
 
   let out='',lastP='',lastS='',idx=0;
   shown.forEach(c=>{
-    if(c.program!==lastP){out+=`<tr class="program"><td colspan="15">${esc(c.program)}</td></tr>`;lastP=c.program;lastS=''}
-    if(c.section!==lastS){out+=`<tr class="section"><td colspan="15">${esc(c.section)}</td></tr>`;lastS=c.section}
+    const nProgram = normalizeGroupText(c.program), nSection = normalizeGroupText(c.section);
+    if(nProgram!==lastP){out+=`<tr class="program"><td colspan="15">${esc(nProgram)}</td></tr>`;lastP=nProgram;lastS=''}
+    if(nSection!==lastS){out+=`<tr class="section"><td colspan="15">${esc(nSection)}</td></tr>`;lastS=nSection}
     idx++;
 
     const codesHtml = c.linkedCourses.length
@@ -744,12 +753,12 @@ function updateCharts(data){
 
   // --- 4) budget by main section (stacked bar: operation bottom + travel top) ---
   const sectionOrder=[];
-  data.forEach(c=>{ if(!sectionOrder.includes(c.section)) sectionOrder.push(c.section); });
+  data.forEach(c=>{ const ns=normalizeGroupText(c.section); if(!sectionOrder.includes(ns)) sectionOrder.push(ns); });
   const sectionCode=s=>{ const m=s.match(/^\s*([\d.]+)/); return m?m[1]:s; };
   const secLabels=sectionOrder.map(s=>sectionCode(s));
   const secFull=sectionOrder.map(s=>s);
-  const secOpData=sectionOrder.map(s=>data.filter(c=>c.section===s).reduce((sum,c)=>sum+(c.operation||0),0));
-  const secTrData=sectionOrder.map(s=>data.filter(c=>c.section===s).reduce((sum,c)=>sum+(c.travel||0),0));
+  const secOpData=sectionOrder.map(s=>data.filter(c=>normalizeGroupText(c.section)===s).reduce((sum,c)=>sum+(c.operation||0),0));
+  const secTrData=sectionOrder.map(s=>data.filter(c=>normalizeGroupText(c.section)===s).reduce((sum,c)=>sum+(c.travel||0),0));
   if(programChartInstance)programChartInstance.destroy();
   programChartInstance=new Chart(document.getElementById('programChart'),{
     type:'bar',
@@ -858,15 +867,16 @@ const PLAN_PLACEHOLDER_SECTION = '(ไม่ระบุหมวด)';
 
 function getDistinctPrograms(){
   const set = new Set();
-  allPlans.forEach(p=>{ if(p.program && p.program!==PLAN_PLACEHOLDER_PROGRAM) set.add(p.program); });
+  allPlans.forEach(p=>{ if(p.program && p.program!==PLAN_PLACEHOLDER_PROGRAM) set.add(normalizeGroupText(p.program)); });
   return Array.from(set).sort((a,b)=>a.localeCompare(b,'th'));
 }
 function getDistinctSections(program){
   const set = new Set();
+  const nProgram = program ? normalizeGroupText(program) : '';
   allPlans.forEach(p=>{
     if(!p.section || p.section===PLAN_PLACEHOLDER_SECTION) return;
-    if(program && p.program!==program) return;
-    set.add(p.section);
+    if(nProgram && normalizeGroupText(p.program)!==nProgram) return;
+    set.add(normalizeGroupText(p.section));
   });
   return Array.from(set).sort((a,b)=>a.localeCompare(b,'th'));
 }
@@ -874,18 +884,20 @@ function getDistinctSections(program){
 function populateProgramSelect(selected){
   const sel = document.getElementById('pf_program_select');
   const progs = getDistinctPrograms();
+  const nSel = normalizeGroupText(selected);
   sel.innerHTML = progs.length
     ? progs.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')
     : '<option value="">— ยังไม่มีหมวด กด "หมวดใหม่" —</option>';
-  if(selected && progs.includes(selected)) sel.value = selected;
+  if(nSel && progs.includes(nSel)) sel.value = nSel;
 }
 function populateSectionSelect(program, selected){
   const sel = document.getElementById('pf_section_select');
   const secs = getDistinctSections(program);
+  const nSel = normalizeGroupText(selected);
   sel.innerHTML = secs.length
     ? secs.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')
     : '<option value="">— ยังไม่มีกลุ่ม กด "กลุ่มใหม่" —</option>';
-  if(selected && secs.includes(selected)) sel.value = selected;
+  if(nSel && secs.includes(nSel)) sel.value = nSel;
 }
 function onProgramSelectChange(){
   populateSectionSelect(document.getElementById('pf_program_select').value, '');
@@ -1006,8 +1018,8 @@ function closePlanModal(){
 }
 
 async function savePlanItem(){
-  const program = getEffectiveProgram();
-  const section = getEffectiveSection();
+  const program = normalizeGroupText(getEffectiveProgram());
+  const section = normalizeGroupText(getEffectiveSection());
   const name    = document.getElementById('pf_name').value.trim();
   const msgEl   = document.getElementById('planFormMsg');
   const showErr = (t) => { msgEl.textContent = t; msgEl.style.display='block'; };

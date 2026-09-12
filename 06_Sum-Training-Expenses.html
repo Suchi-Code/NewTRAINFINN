@@ -362,6 +362,9 @@ let dc = {};
 .sum-order-btn{width:24px;height:24px;border:1px solid var(--border);background:#fff;color:var(--navy);border-radius:5px;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .sum-order-btn:hover:not(:disabled){background:var(--info-bg);border-color:var(--blue);color:var(--blue)}
 .sum-order-btn:disabled{opacity:.3;cursor:not-allowed}
+.sum-order-warn{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#b91c1c;background:#fee2e2;border:1px solid #f3c7cf;border-radius:4px;padding:2px 8px;cursor:default;white-space:nowrap}
+.sum-merge-label{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--accent);border-radius:4px;padding:2px 8px;cursor:pointer}
+.sum-merge-label input{margin:0;cursor:pointer}
 .sum-w119-label{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--info);background:var(--info-bg);border:1px solid var(--blue);border-radius:4px;padding:2px 8px;cursor:pointer}
 .sum-w119-label input{margin:0;cursor:pointer}
 .sum-remember-label{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--green);background:var(--green-bg);border:1px solid var(--green);border-radius:4px;padding:2px 8px;cursor:pointer}
@@ -380,6 +383,8 @@ let dc = {};
 .sum-del-btn{margin-left:auto;padding:3px 10px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:4px;font-family:'Sarabun',sans-serif;font-size:11.5px;cursor:pointer}
 .sum-row-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sum-row-4col{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.sum-gross-icon{display:inline-flex;align-items:center;cursor:pointer}
+.sum-gross-icon input[type=checkbox]{width:13px;height:13px;cursor:pointer;margin:0}
 .sum-inp{display:flex;flex-direction:column;gap:3px}
 .sum-inp label{font-size:11px;color:var(--text-soft);font-weight:500}
 .sum-inp input,.sum-inp select{padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-family:'Sarabun',sans-serif;font-size:12.5px;color:var(--text)}
@@ -613,6 +618,11 @@ function sumAddRow(){
         <button type="button" class="sum-order-btn" id="${id}_up" onclick="sumMoveRow('${id}',-1)" title="เลื่อนขึ้น">▲</button>
         <button type="button" class="sum-order-btn" id="${id}_down" onclick="sumMoveRow('${id}',1)" title="เลื่อนลง">▼</button>
       </div>
+      <span class="sum-order-warn" id="${id}_orderwarn" style="display:none" title=""></span>
+      <label class="sum-merge-label" id="${id}_mergelabel" style="display:none">
+        <input type="checkbox" id="${id}_merge" onchange="sumRenumber()">
+        <span>รวมลำดับกับรายการก่อนหน้า</span>
+      </label>
       <label class="sum-w119-label" id="${id}_w119label">
         <input type="checkbox" id="${id}_w119">
         <span>ค่าใช้จ่ายตาม ว.119</span>
@@ -680,8 +690,15 @@ function sumAddRow(){
       <div class="sum-inp"><label>รหัสบัญชี</label>
         <input type="text" id="${id}_acct" value="6212001"></div>
     </div>
+    <div id="${id}_gross_val" class="sum-row-4col" style="display:none;margin-bottom:8px;background:var(--info-bg);border:1px dashed var(--blue);border-radius:8px;padding:10px 12px 4px;">
+      <div class="sum-inp sum-wide"><label style="color:var(--blue);font-weight:700;">ยอดเต็ม (รวม VAT) (บาท)</label>
+        <input type="number" id="${id}_gross_val_input" value="0" step="0.01" oninput="sumApplyGross('${id}','val','vat')"></div>
+    </div>
     <div id="${id}_normal_4col" class="sum-row-4col">
-      <div class="sum-inp"><label>มูลค่าสินค้า (บาท)</label>
+      <div class="sum-inp"><label style="display:inline-flex;align-items:center;gap:5px;">มูลค่าสินค้า (บาท)
+          <span class="sum-gross-icon" title="ติ๊กถ้ามีแต่ยอดรวม VAT (ยอดเต็ม) — ระบบจะคำนวณมูลค่าสินค้า/VAT ให้อัตโนมัติ (หาร 1.07)">
+            <input type="checkbox" id="${id}_grossmode_val" onchange="sumToggleGrossMode('${id}','val','vat')">
+          </span></label>
         <input type="number" id="${id}_val" value="0" step="0.01" oninput="sumRowCalc('${id}')"></div>
       <div class="sum-inp"><label>ภาษีมูลค่าเพิ่ม (บาท)</label>
         <input type="number" id="${id}_vat" value="0" step="0.01" oninput="sumRowCalc('${id}')"></div>
@@ -692,15 +709,29 @@ function sumAddRow(){
     </div>
     <div id="${id}_combined_3_12" style="display:none;background:var(--info-bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:6px;">
       <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px;">3.1 อาหารกลางวัน</div>
+      <div id="${id}_gross_v31" class="sum-row-4col" style="display:none;margin-bottom:8px;background:#fff;border:1px dashed var(--blue);border-radius:8px;padding:10px 12px 4px;">
+        <div class="sum-inp sum-wide"><label style="color:var(--blue);font-weight:700;">ยอดเต็ม 3.1 (รวม VAT) (บาท)</label>
+          <input type="number" id="${id}_gross_v31_input" value="0" step="0.01" oninput="sumApplyGross('${id}','v31','vat31')"></div>
+      </div>
       <div class="sum-row-4col" style="margin-bottom:10px;">
-        <div class="sum-inp"><label>มูลค่าสินค้า 3.1 (บาท)</label>
+        <div class="sum-inp"><label style="display:inline-flex;align-items:center;gap:5px;">มูลค่าสินค้า 3.1 (บาท)
+            <span class="sum-gross-icon" title="ติ๊กถ้ามีแต่ยอดรวม VAT (ยอดเต็ม) ของบิล 3.1 — ระบบจะคำนวณให้อัตโนมัติ (หาร 1.07)">
+              <input type="checkbox" id="${id}_grossmode_v31" onchange="sumToggleGrossMode('${id}','v31','vat31')">
+            </span></label>
           <input type="number" id="${id}_v31" value="0" step="0.01" oninput="sumRowCalc312('${id}')"></div>
         <div class="sum-inp"><label>ภาษีมูลค่าเพิ่ม 3.1 (บาท)</label>
           <input type="number" id="${id}_vat31" value="0" step="0.01" oninput="sumRowCalc312('${id}')"></div>
       </div>
       <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px;">3.2 อาหารว่างและเครื่องดื่ม</div>
+      <div id="${id}_gross_v32" class="sum-row-4col" style="display:none;margin-bottom:8px;background:#fff;border:1px dashed var(--blue);border-radius:8px;padding:10px 12px 4px;">
+        <div class="sum-inp sum-wide"><label style="color:var(--blue);font-weight:700;">ยอดเต็ม 3.2 (รวม VAT) (บาท)</label>
+          <input type="number" id="${id}_gross_v32_input" value="0" step="0.01" oninput="sumApplyGross('${id}','v32','vat32')"></div>
+      </div>
       <div class="sum-row-4col" style="margin-bottom:10px;">
-        <div class="sum-inp"><label>มูลค่าสินค้า 3.2 (บาท)</label>
+        <div class="sum-inp"><label style="display:inline-flex;align-items:center;gap:5px;">มูลค่าสินค้า 3.2 (บาท)
+            <span class="sum-gross-icon" title="ติ๊กถ้ามีแต่ยอดรวม VAT (ยอดเต็ม) ของบิล 3.2 — ระบบจะคำนวณให้อัตโนมัติ (หาร 1.07)">
+              <input type="checkbox" id="${id}_grossmode_v32" onchange="sumToggleGrossMode('${id}','v32','vat32')">
+            </span></label>
           <input type="number" id="${id}_v32" value="0" step="0.01" oninput="sumRowCalc312('${id}')"></div>
         <div class="sum-inp"><label>ภาษีมูลค่าเพิ่ม 3.2 (บาท)</label>
           <input type="number" id="${id}_vat32" value="0" step="0.01" oninput="sumRowCalc312('${id}')"></div>
@@ -762,6 +793,7 @@ function sumSecChange(id){
     if(staffSelOut) staffSelOut.selectedIndex = 0;
   }
   sumCalc();
+  sumValidateOrder();
 }
 
 
@@ -818,6 +850,7 @@ function sumSubChange(id){
   if(sec === SchemaTH.SEC.STAFF_TRAVEL) apply4Logic(ps, id, sub);
   if(sec === SchemaTH.SEC.FOOD) apply3_12Logic(ps, id, sub);
   sumCalc();
+  sumValidateOrder();
 }
 
 /* ─────────────────────────────────────────────────────
@@ -982,24 +1015,105 @@ function pickVendor(pickId){
 function sumRenumber(){
   const ps = smPS();
   const cards = Array.from(ps.querySelectorAll('#sm_rows .sum-row-card'));
+  let displaySeq = 0;
   cards.forEach((card, i) => {
-    const id      = card.id;
-    const numEl   = card.querySelector('.sum-row-num');
-    const titleEl = card.querySelector('.sum-row-title');
-    const upBtn   = card.querySelector(`#${id}_up`);
-    const downBtn = card.querySelector(`#${id}_down`);
-    numEl.textContent   = i + 1;
+    const id         = card.id;
+    const mergeLabel = card.querySelector('.sum-merge-label');
+    const mergeCb    = card.querySelector(`#${id}_merge`);
+    const numEl      = card.querySelector('.sum-row-num');
+    const titleEl    = card.querySelector('.sum-row-title');
+    const upBtn      = card.querySelector(`#${id}_up`);
+    const downBtn    = card.querySelector(`#${id}_down`);
+    // ซ่อน checkbox รายการแรก (ไม่มี "รายการก่อนหน้า" ให้รวมด้วย), แสดงรายการถัดไป
+    if(i === 0){
+      if(mergeLabel) mergeLabel.style.display = 'none';
+      if(mergeCb) mergeCb.checked = false;
+    } else {
+      if(mergeLabel) mergeLabel.style.display = '';
+    }
+    // คำนวณ display seq (รายการที่ merge ไว้ไม่นับเป็นลำดับใหม่)
+    const isMerged = mergeCb && mergeCb.checked;
+    if(!isMerged) displaySeq++;
+    numEl.textContent   = displaySeq;
     titleEl.textContent = `รายการที่ ${i+1}`;
+    // highlight แถวที่ merge
+    card.style.borderLeft = isMerged ? '4px solid var(--accent)' : '';
+    card.style.background = isMerged ? 'var(--amber-bg)' : '';
     if(upBtn)   upBtn.disabled   = (i === 0);
     if(downBtn) downBtn.disabled = (i === cards.length - 1);
   });
+  sumValidateOrder();
+}
+
+/* ============================================================
+   VALIDATION: ลำดับหมวด/หมวดย่อยต้องเรียงถูกต้อง (งาน 06 ข้อ 5) — ทำงานสดๆ ทุกครั้งที่
+   เปลี่ยนหมวด (sumSecChange/sumSubChange), สลับ ▲▼ หรือเพิ่ม/ลบรายการ (sumRenumber ถูกเรียกอยู่แล้ว
+   จากทุกจุดนั้น), และตอนโหลดข้อมูลเก่าเข้ามา (restoreRowsFromGs ก็เรียก sumRenumber เช่นกัน)
+   ตรวจ 2 ระดับ:
+   (ก) ลำดับหมวดใหญ่ต้องไม่ย้อนกลับ (ตาม SchemaTH.DYNAMIC_SEC_ORDER) — ครั้งหนึ่งย้ายไปหมวดถัดไปแล้ว
+       ห้ามมีรายการของหมวดก่อนหน้าโผล่มาอีก (ไม่งั้นหัวข้อหมวดใหญ่ใน sumBuildDoc จะขึ้นซ้ำ)
+   (ข) ภายในหมวดวัสดุสำนักงาน (SEC.OFFICE) ต้องกรอก "ค่าเครื่องเขียนแบบพิมพ์" ให้ครบก่อน แล้วค่อย
+       "ค่าถ่ายเอกสารและเข้าเล่ม" ห้ามสลับ (ผูกกับเลขหัวข้อย่อย 1.1/1.2 ที่เพิ่มในข้อ 2 — ถ้าสลับ
+       เลขที่ขึ้นในรายงานจะไม่ตรงกับไฟล์ 05)
+   คืนค่า true = เรียงถูกทั้งหมด, false = มีอย่างน้อย 1 การ์ดผิดลำดับ (ติดป้ายแดง + tooltip ให้แล้ว)
+   ============================================================ */
+function sumValidateOrder(){
+  const ps = smPS();
+  const cards = Array.from(ps.querySelectorAll('#sm_rows .sum-row-card'));
+  const OFFICE_SUB_ORDER = [SchemaTH.SUB.OFFICE_STATIONERY, SchemaTH.SUB.OFFICE_COPY];
+
+  // เคลียร์ป้ายแดงทุกใบก่อนตรวจใหม่ทุกครั้ง
+  cards.forEach(card => {
+    const warn = card.querySelector(`#${card.id}_orderwarn`);
+    if(warn){ warn.style.display = 'none'; warn.title = ''; }
+  });
+
+  let maxSecIdx = -1;
+  let maxOfficeSubIdx = -1;
+  let ok = true;
+
+  cards.forEach(card => {
+    const id = card.id;
+    const secV = ps.querySelector(`#${id}_sec`)?.value || '';
+    const subV = ps.querySelector(`#${id}_sub`)?.value || '';
+    const secIdx = SchemaTH.DYNAMIC_SEC_ORDER.indexOf(secV);
+    const msgs = [];
+
+    if(secIdx !== -1){
+      if(secIdx < maxSecIdx) msgs.push('หมวดใหญ่ไม่เรียงลำดับ ก.1→ก.x — ย้ายรายการนี้ไปรวมกับกลุ่มหมวดเดียวกันก่อนหน้า หรือสลับลำดับหมวดใหม่ให้ถูก');
+      else maxSecIdx = secIdx;
+    }
+
+    if(secV === SchemaTH.SEC.OFFICE && subV){
+      const subIdx = OFFICE_SUB_ORDER.indexOf(subV);
+      if(subIdx !== -1){
+        if(subIdx < maxOfficeSubIdx) msgs.push('หมวดวัสดุสำนักงาน: ต้องกรอก "ค่าเครื่องเขียนแบบพิมพ์" ให้ครบก่อน แล้วค่อยกรอก "ค่าถ่ายเอกสารและเข้าเล่ม" ห้ามสลับกัน');
+        else maxOfficeSubIdx = subIdx;
+      }
+    }
+
+    if(msgs.length){
+      ok = false;
+      const warn = card.querySelector(`#${id}_orderwarn`);
+      if(warn){
+        warn.style.display = '';
+        warn.title = msgs.join(' / ');
+        warn.textContent = '⚠️ ลำดับผิด';
+      }
+    }
+  });
+
+  return ok;
 }
 
 /* ── sumMoveRow — สลับตำแหน่งการ์ดจริงใน DOM (ผู้ใช้กำหนดลำดับหมวด ก.1-ก.x เองตรงนี้)
    ลำดับที่สลับแล้วจะถูกใช้ทั้งตอน sumRenumber (เลขที่โชว์), sumCollectState (ลำดับที่ส่งไปบันทึก
    ลง Sheet ตอนกด "บันทึกแบบร่าง"), และ sumBuildDoc (ลำดับที่ขึ้นตัวอย่างรายงาน/PDF) เพราะทุกจุด
    อ่านจาก DOM order ของ #sm_rows เป็นความจริงหนึ่งเดียวเหมือนกันหมด — สลับแล้วยังไม่ถือว่าบันทึก
-   จนกว่าจะกด "บันทึกแบบร่าง" อีกครั้ง (เหมือนแก้ตัวเลขในบิลแล้วไม่กดบันทึก) ── */
+   จนกว่าจะกด "บันทึกแบบร่าง" อีกครั้ง (เหมือนแก้ตัวเลขในบิลแล้วไม่กดบันทึก)
+   ⚠️ ทุกครั้งที่กด ▲▼ จะ "เคลียร์ checkbox รวมลำดับกับรายการก่อนหน้า" ของทุกการ์ดในหน้าทั้งหมดทันที
+   (ไม่ใช่แค่การ์ดที่ถูกย้าย) เพราะความหมาย "รายการก่อนหน้า" เปลี่ยนไปทันทีที่ลำดับเปลี่ยน หาก
+   ปล่อยให้ merge state ค้างไว้ต่อจะจับคู่กับรายการที่ผิดตัวและยอด/การแสดงผลรายงานจะพังแบบเงียบๆ ── */
 function sumMoveRow(id, dir){
   const ps = smPS();
   const rowsWrap = ps.querySelector('#sm_rows');
@@ -1012,8 +1126,68 @@ function sumMoveRow(id, dir){
     const next = card.nextElementSibling;
     if(next) rowsWrap.insertBefore(next, card);
   }
+  ps.querySelectorAll('#sm_rows [id$="_merge"]').forEach(cb => { cb.checked = false; });
   sumRenumber();
   sumCalc();
+}
+
+/* ============================================================
+   GROSS→NET VAT EXTRACTION — "กรอกยอดเต็ม ให้ระบบถอด VAT ให้" (งาน 06 ข้อ 3)
+   ใช้ร่วมกันทั้งบิลปกติ (val/vat) และบิลรวม 3.1/3.2 (v31/vat31, v32/vat32) โดยรับ valKey/vatKey
+   เป็น "ส่วนหลัง" ของ id เช่น 'val'/'vat' หรือ 'v31'/'vat31' — เมื่อติ๊ก: val/vat เดิมล็อก (readonly)
+   แต่ยังโชว์ตัวเลขปกติ ไม่ซ่อน + โผล่แถวใหม่ "ยอดเต็ม (รวม VAT)" ด้านบน 4-คอลัมน์เดิม
+   สูตร: มูลค่าสินค้า = ยอดเต็ม ÷ 1.07 (ปัด 2 ตำแหน่ง), VAT = ยอดเต็ม − มูลค่าสินค้า
+   จำนวนเงิน (total) ยังคำนวณจากสูตรเดิม (val+vat−wht) ผ่าน sumRowCalc/sumRowCalc312 ตามปกติ
+   ============================================================ */
+function sumToggleGrossMode(rowId, valKey, vatKey){
+  const ps = smPS();
+  const cb      = ps.querySelector(`#${rowId}_grossmode_${valKey}`);
+  const valEl   = ps.querySelector(`#${rowId}_${valKey}`);
+  const vatEl   = ps.querySelector(`#${rowId}_${vatKey}`);
+  const rowWrap = ps.querySelector(`#${rowId}_gross_${valKey}`);
+  const grossEl = ps.querySelector(`#${rowId}_gross_${valKey}_input`);
+  if(!cb || !valEl || !vatEl || !rowWrap || !grossEl) return;
+
+  const on = cb.checked;
+  [valEl, vatEl].forEach(el => {
+    el.readOnly = on;
+    el.style.background = on ? 'var(--gray-100)' : '';
+    el.style.color = on ? '#6b7280' : '';
+  });
+  rowWrap.style.display = on ? '' : 'none';
+
+  if(on){
+    // ตั้งค่าเริ่มต้นของ "ยอดเต็ม" จากมูลค่าสินค้า+VAT ปัจจุบัน (เผื่อโหลดข้อมูลเก่าที่มีค่าอยู่แล้ว
+    // มาก่อนติ๊ก) — ถ้ายอดเต็มมีค่าอยู่แล้ว (ติ๊กซ้ำ) ไม่ทับของเดิมที่พิมพ์ค้างไว้
+    if(!(parseFloat(grossEl.value)||0)){
+      const curVal = parseFloat(valEl.value) || 0;
+      const curVat = parseFloat(vatEl.value) || 0;
+      grossEl.value = (curVal + curVat).toFixed(2);
+    }
+    sumApplyGross(rowId, valKey, vatKey);
+  } else {
+    sumRecalcRow(rowId, valKey);
+  }
+}
+
+function sumApplyGross(rowId, valKey, vatKey){
+  const ps = smPS();
+  const grossEl = ps.querySelector(`#${rowId}_gross_${valKey}_input`);
+  const valEl   = ps.querySelector(`#${rowId}_${valKey}`);
+  const vatEl   = ps.querySelector(`#${rowId}_${vatKey}`);
+  if(!grossEl || !valEl || !vatEl) return;
+  const gross = parseFloat(grossEl.value) || 0;
+  const val   = Math.round((gross / 1.07) * 100) / 100;
+  const vat   = Math.round((gross - val) * 100) / 100;
+  valEl.value = val.toFixed(2);
+  vatEl.value = vat.toFixed(2);
+  sumRecalcRow(rowId, valKey);
+}
+
+// เลือกฟังก์ชันคำนวณ "จำนวนเงิน" ที่ถูกต้องตามว่าเป็นบิลปกติ (val/vat) หรือบิลรวม 3.1/3.2 (v31/v32)
+function sumRecalcRow(rowId, valKey){
+  if(valKey === 'v31' || valKey === 'v32') sumRowCalc312(rowId);
+  else sumRowCalc(rowId);
 }
 
 function sumRowCalc(id){
@@ -1091,6 +1265,12 @@ function sumCalc(){
 }
 
 function sumGoPreview(){
+  // ✅ ล็อกดูตัวอย่างรายงานถ้าลำดับหมวด/หมวดย่อยผิด (งาน 06 ข้อ 5) — แจ้งเตือนแล้วไม่สลับหน้าไปตาราง
+  // จนกว่าจะแก้ลำดับให้ถูก (การ์ดที่ผิดมีป้ายแดง "⚠️ ลำดับผิด" ชี้ไว้ให้แล้วจาก sumValidateOrder())
+  if(!sumValidateOrder()){
+    alert('⚠️ ลำดับรายการยังไม่ถูกต้อง กรุณาแก้ไขก่อนดูตัวอย่างรายงาน\n\nดูการ์ดที่มีป้าย "⚠️ ลำดับผิด" สีแดง แล้วเลื่อน ▲▼ หรือแก้หมวด/หมวดย่อยให้เรียงถูก');
+    return;
+  }
   sumBuildDoc();
   smPS().querySelector('#sv-form').classList.remove('sv-active');
   smPS().querySelector('#sv-preview').classList.add('sv-active');
@@ -1124,6 +1304,7 @@ function sumCollectState(){
     if(row.sec !== SchemaTH.SEC.STAFF_TRAVEL) row.staff = '';          // หมวดอื่น: ไม่มี staff
     if(row.sec === SchemaTH.SEC.STAFF_TRAVEL && row.sub !== SchemaTH.SUB.STAFF_TRANSPORT) row.name = '';   // ค่าเบี้ยเลี้ยง/ที่พัก: ใช้ staff ไม่ใช้ name
     if(row.sec === SchemaTH.SEC.STAFF_TRAVEL && row.sub === SchemaTH.SUB.STAFF_TRANSPORT) row.staff = '';  // ค่าพาหนะ: ใช้ name ไม่ใช้ staff
+    row.merge = ps.querySelector(`#${id}_merge`)?.checked || false;
     row.w119  = ps.querySelector(`#${id}_w119`)?.checked || false;
     row.remember    = ps.querySelector(`#${id}_remember`)?.checked || false;
     row.addressOnly = ps.querySelector(`#${id}_addressonly`)?.checked || false;
@@ -1592,7 +1773,13 @@ function sumBuildDoc(){
     const id = card.id;
     const secV = ps.querySelector(`#${id}_sec`)?.value||SchemaTH.SEC.MISC;
     const subV = ps.querySelector(`#${id}_sub`)?.value||'';  // SUB.OFFICE_STATIONERY/OFFICE_COPY/'' — เก็บไว้แต่ไม่แสดงในรายงาน
-    seq++;
+    // ✅ "รวมลำดับกับรายการก่อนหน้า" (checkbox #${id}_merge, เพิ่มมาใน sum-row-top) — แถวแรก
+    // (idx===0) ไม่มี checkbox นี้ให้ติ๊กอยู่แล้ว (ซ่อนไว้ใน sumRenumber) จึงไม่มีวัน merge ได้
+    // ถ้าติ๊กไว้ → ใช้ค่า seq เดิมของแถวก่อนหน้าแทนการเพิ่มเลขใหม่ ผลคือคอลัมน์ "ลำดับที่" ในตาราง
+    // รายงาน (ดู seqSpan/seqRendered ด้านล่าง) จะ rowspan รวมเป็นเลขเดียวกัน — ก่อนหน้านี้ค่า seq
+    // เพิ่มทุกแถวเสมอไม่ว่าจะติ๊ก merge หรือไม่ ทำให้ติ๊กแล้วไม่มีผลอะไรกับตัวอย่างรายงาน/PDF เลย
+    const isMerged = idx > 0 && (ps.querySelector(`#${id}_merge`)?.checked || false);
+    if(!isMerged) seq++;
     const isStaff = secV === SchemaTH.SEC.STAFF_TRAVEL && subV !== SchemaTH.SUB.STAFF_TRANSPORT;
     rows.push({
       seq, secV, subV,
@@ -1678,22 +1865,25 @@ function sumBuildDoc(){
     let pg = `<div class="sm-page">`;
     pg += `<div class="sm-pgnum">หน้า ${p+1}/${totalPages}</div>`;
     if(isFirst){
+      // ✅ หัวเอกสาร 4 บรรทัด — เปลี่ยนจาก <input type="text"> (บรรทัดเดียวตายตัว ตัดคำไม่ได้ ข้อความยาว
+      // จะถูกครอบตัด) เป็น contenteditable div (ห่อบรรทัดอัตโนมัติเมื่อยาวเกิน ยังแก้ไขข้อความได้เหมือนเดิม
+      // ทุกประการ) — หน้าตา/ตำแหน่ง/ฟอนต์ทั้งหมดคงเดิม มีแค่ tag เปลี่ยนจาก input→div และ value=→เนื้อหาข้างใน
       pg += `<div class="sm-hdr">
          <div style="width: 100%; margin-bottom: 1px;">
-           <input class="rpt-edit" type="text" value="สรุปค่าใช้จ่ายการดำเนินการฝึกอบรม" 
-                  style="width: 100%; text-align: center; font-weight: bold; font-family: 'Sarabun', sans-serif; background: transparent; border: none; outline: none; padding: 2px 0 2px 0; line-height: 1.5;">
+           <div class="rpt-edit" contenteditable="true"
+                  style="width: 100%; text-align: center; font-weight: bold; font-family: 'Sarabun', sans-serif; background: transparent; border: none; outline: none; padding: 2px 0 2px 0; line-height: 1.5;">สรุปค่าใช้จ่ายการดำเนินการฝึกอบรม</div>
          </div>
          <div style="width: 100%; margin-bottom: 1px;">
-           <input class="rpt-edit" type="text" value="หลักสูตร ${thaiNum(title)} รุ่นที่ ${thaiNum(run)}" 
-                  style="width: 100%; text-align: center;font-weight: bold; font-family: 'Sarabun', sans-serif; background: transparent; border: none; outline: none; padding: 2px 0 2px 0; line-height: 1.5;">
+           <div class="rpt-edit" contenteditable="true"
+                  style="width: 100%; text-align: center;font-weight: bold; font-family: 'Sarabun', sans-serif; background: transparent; border: none; outline: none; padding: 2px 0 2px 0; line-height: 1.5;">หลักสูตร ${thaiNum(title)} รุ่นที่ ${thaiNum(run)}</div>
          </div>
          <div style="width: 100%; margin-bottom: 1px;">
-           <input class="rpt-edit" type="text" value="เลขที่รุ่นหลักสูตร ${thaiNum(runno)} ในวันที่ ${thaiNum(date)}" 
-                  style="width: 100%; text-align: center;font-weight: bold; font-family: 'Sarabun', sans-serif; background: transparent; border: none; outline: none; padding: 2px 0 2px 0; line-height: 1.5;">
+           <div class="rpt-edit" contenteditable="true"
+                  style="width: 100%; text-align: center;font-weight: bold; font-family: 'Sarabun', sans-serif; background: transparent; border: none; outline: none; padding: 2px 0 2px 0; line-height: 1.5;">เลขที่รุ่นหลักสูตร ${thaiNum(runno)} ในวันที่ ${thaiNum(date)}</div>
          </div>
          <div style="width: 100%; margin-bottom: 1px;">
-           <input class="rpt-edit" type="text" value="ณ ${thaiNum(place)}" 
-                  style="width: 100%; text-align: center;font-weight: bold; font-family: 'Sarabun', sans-serif; background: transparent; border: none; outline: none; padding: 2px 0 2px 0; line-height: 1.5;">
+           <div class="rpt-edit" contenteditable="true"
+                  style="width: 100%; text-align: center;font-weight: bold; font-family: 'Sarabun', sans-serif; background: transparent; border: none; outline: none; padding: 2px 0 2px 0; line-height: 1.5;">ณ ${thaiNum(place)}</div>
          </div>
        </div>`;
     }
@@ -1715,6 +1905,13 @@ function sumBuildDoc(){
 
     let lastSec = '';
     let lastSecHasW119 = false;
+    // ✅ หัวข้อย่อย 1.1/1.2 ของหมวดวัสดุสำนักงาน (SEC.OFFICE) — ล้อไฟล์ 05: "1.1 ค่าเครื่องเขียนแบบพิมพ์"
+    // / "1.2 ค่าถ่ายเอกสารและเข้าเล่ม" ต่างจาก MISC ตรงที่มี 2 หมวดย่อย จึงนับเลขจาก "ลำดับที่ปรากฏจริง"
+    // ในแถว (ไม่ fix ตายตัวว่าเครื่องเขียน=1/ถ่ายเอกสาร=2 เพราะไฟล์นี้มีแถวจริงตามลำดับที่ผู้ใช้กรอก
+    // ต่างจากไฟล์ 05 ที่เป็นแค่ยอดรวม 2 ก้อนคงที่) — ต้องกรอกเครื่องเขียนทั้งหมดก่อนถ่ายเอกสารทั้งหมด
+    // เท่านั้น (ดู sumValidateOrder()) ไม่งั้นเลขที่ขึ้นจะสลับกับไฟล์ 05 — reset ทุกหน้าเหมือน lastSec
+    let lastOfficeSub = null;
+    let officeSubCounter = 0;
     const seqSpan = {};
     pageRows.forEach(r => { seqSpan[r.seq] = (seqSpan[r.seq]||0) + 1; });
     const seqRendered = {};
@@ -1747,6 +1944,22 @@ function sumBuildDoc(){
                  </td>
                </tr>`;
         window.hasAddedOthers = true; 
+      }
+
+      // 2b. แทรกหัวข้อย่อย "1.1 ค่าเครื่องเขียนแบบพิมพ์" / "1.2 ค่าถ่ายเอกสารและเข้าเล่ม" เฉพาะตอน
+      // เปลี่ยนหมวดย่อยจริง (มีรายการจริงของหมวดย่อยนั้นเท่านั้นถึงจะขึ้นหัวข้อ — ไม่ขึ้นครบทั้งคู่เสมอ)
+      if (r.secV === SchemaTH.SEC.OFFICE && r.subV && r.subV !== lastOfficeSub) {
+        officeSubCounter++;
+        const officeSubLabel = r.subV === SchemaTH.SUB.OFFICE_STATIONERY ? 'ค่าเครื่องเขียนแบบพิมพ์'
+          : (r.subV === SchemaTH.SUB.OFFICE_COPY ? 'ค่าถ่ายเอกสารและเข้าเล่ม' : '');
+        if (officeSubLabel) {
+          pg += `<tr>
+                   <td class="sm-tl" colspan="7" style="padding-left: 20px; font-weight: bold; font-style: normal;">
+                    &nbsp;&nbsp;&nbsp;${majorNums[SchemaTH.SEC.OFFICE] || ''}.${officeSubCounter} ${officeSubLabel}${lastSecHasW119 ? ' (ว.119)' : ''}
+                   </td>
+                 </tr>`;
+        }
+        lastOfficeSub = r.subV;
       }
 
       // 3. แสดงข้อมูลแถวรายการ (แสดงตามปกติ)
@@ -1873,8 +2086,15 @@ async function savePdf06(btn){
   try {
     const clone = el.cloneNode(true);
 
-    // แปลง input ที่แก้ไขได้ (หัวกระดาษบนหน้าแรก) ให้เป็นข้อความนิ่งๆ ก่อนส่งไป render
-    // (เก็บ inline style เดิมไว้ทั้งหมด เพราะแต่ละช่องตั้ง text-align/font-weight/width มาให้แล้ว)
+    // ✅ หัวเอกสาร (4 บรรทัด) ตอนนี้เป็น <div contenteditable> แล้ว (ไม่ใช่ <input> อีกต่อไป — ดู sumBuildDoc)
+    // แค่ถอด attribute contenteditable ออกก่อนส่ง render พอ ไม่ต้องแปลง tag ใดๆ เพิ่ม
+    // (เนื้อหาที่ผู้ใช้แก้ไขระหว่างดูตัวอย่างจะอยู่ใน DOM ของ el อยู่แล้วเพราะเป็น contenteditable
+    // จริงบน element เดียวกัน ไม่ใช่ .value ของ input ที่ต้องอ่านแยก)
+    clone.querySelectorAll('[contenteditable]').forEach(el2 => {
+      el2.removeAttribute('contenteditable');
+      el2.style.outline = 'none';
+    });
+    // เผื่อมี input.rpt-edit หลงเหลืออยู่จากจุดอื่นในอนาคต — แปลงเป็นข้อความนิ่งๆ เหมือนเดิม
     clone.querySelectorAll('input.rpt-edit').forEach(inp => {
       const d = document.createElement('div');
       d.style.cssText = inp.getAttribute('style') || '';

@@ -14,7 +14,6 @@
 <script src="js/auth.js"></script>
 <script src="js/date-th.js"></script>
 <script src="js/gas-api.js"></script>
-<script src="js/schema.js"></script>
 <script>checkAuth();</script>
 
 <style>
@@ -44,14 +43,14 @@ body{font-family:'Prompt',sans-serif;background:var(--gray-50);color:var(--text)
 .brand-text{min-width:0}
 .brand b{display:block;color:#fff;font-size:15px;white-space:nowrap}
 .brand span{font-size:10.5px;color:#a9c3d6;white-space:normal;line-height:1.3;display:block}
-.side-nav{padding-top:20px}
-.side-nav-label{font-size:11px;letter-spacing:.08em;color:#82a4bd;padding:0 12px 10px}
-.side-nav a{display:flex;align-items:center;gap:12px;text-decoration:none;color:#c9dae7;padding:12px;border-radius:8px;margin:3px 0;transition:.15s}
-.side-nav a:hover{background:rgba(255,255,255,.08)}
-.side-nav a.active{background:#1275b4;color:#fff;font-weight:700;box-shadow:inset 3px 0 #91d8ff}
-.side-nav svg{width:19px;height:19px;flex:0 0 19px;fill:none;stroke:currentColor;stroke-width:1.8}
-.side-user{margin-top:auto;background:rgba(255,255,255,.07);padding:13px;border-radius:9px;font-size:12px;overflow:hidden}
-.side-user b{color:#fff;display:block;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav{padding-top:20px}
+.nav-label{font-size:11px;letter-spacing:.08em;color:#82a4bd;padding:0 12px 10px}
+.nav a{display:flex;align-items:center;gap:12px;text-decoration:none;color:#c9dae7;padding:12px;border-radius:8px;margin:3px 0;transition:.15s}
+.nav a:hover{background:rgba(255,255,255,.08)}
+.nav a.active{background:#1275b4;color:#fff;font-weight:700;box-shadow:inset 3px 0 #91d8ff}
+.nav svg{width:19px;height:19px;flex:0 0 19px;fill:none;stroke:currentColor;stroke-width:1.8}
+.user{margin-top:auto;background:rgba(255,255,255,.07);padding:13px;border-radius:9px;font-size:12px;overflow:hidden}
+.user b{color:#fff;display:block;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sidebar-toggle{flex:0 0 26px;width:26px;height:26px;background:transparent;border:0;color:#cfe0ee;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .sidebar-toggle svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.2;transition:transform .22s ease}
 .sidebar-toggle.collapsed svg{transform:rotate(180deg)}
@@ -59,9 +58,9 @@ body{font-family:'Prompt',sans-serif;background:var(--gray-50);color:var(--text)
 .sidebar.collapsed{width:76px;flex-basis:76px;padding-left:12px;padding-right:12px}
 .sidebar.collapsed .sidebar-head{flex-direction:column;align-items:center;gap:12px;padding-left:0;padding-right:0}
 .sidebar.collapsed .brand{justify-content:center}
-.sidebar.collapsed .brand-text,.sidebar.collapsed .side-nav-label,.sidebar.collapsed .side-user{display:none}
-.sidebar.collapsed .side-nav a{justify-content:center;padding-left:8px;padding-right:8px}
-.sidebar.collapsed .side-nav a span{display:none}
+.sidebar.collapsed .brand-text,.sidebar.collapsed .nav-label,.sidebar.collapsed .user{display:none}
+.sidebar.collapsed .nav a{justify-content:center;padding-left:8px;padding-right:8px}
+.sidebar.collapsed .nav a span{display:none}
 
 .main{width:calc(100% - 260px);padding:30px 34px 60px;min-width:0;transition:width .22s ease}
 .main.wide{width:calc(100% - 76px)}
@@ -203,19 +202,19 @@ td{padding:11px 10px;border-bottom:1px solid #e7edf1;font-size:12.5px;color:#384
         <img class="mark" src="https://res.cloudinary.com/daytjjgll/image/upload/fl_preserve_transparency/v1786810067/iuss72yvmfk5i0hndhdy.jpg?_s=public-apps" alt="Logo">
         <div class="brand-text"><b>PWA RTD1</b><span>ระบบติดตามงบประมาณและหลักสูตรฝึกอบรม</span></div>
       </div>
-      <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="ยืด / หด เมนู">
+      <button id="sidebarToggle" class="sidebar-toggle" type="button" onclick="toggleSidebar()" title="ยืด / หด เมนู">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
       </button>
     </div>
-    <nav class="side-nav">
-      <div class="side-nav-label">เมนูหลัก</div>
+    <nav class="nav">
+      <div class="nav-label">เมนูหลัก</div>
       <a class="active" href="#" title="ภาพรวม"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM9 21v-6h6v6"/></svg><span>ภาพรวม</span></a>
       <a href="annual-plan.html" title="แผนงานประจำปี"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span>แผนงานประจำปี</span></a>
       <a href="training_courses_gfr1.html" title="หลักสูตรการฝึกอบรม"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg><span>หลักสูตรการฝึกอบรม</span></a>
       <a href="projects.html" title="โครงการ"><svg viewBox="0 0 24 24"><path d="M4 7h16v13H4zM8 7V4h8v3M8 12h8"/></svg><span>โครงการ</span></a>
       <a href="settings.html" title="ตั้งค่า"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.04 2.04-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2.88v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.04-2.04.06-.06A1.7 1.7 0 0 0 7.3 14.8a1.7 1.7 0 0 0-1.56-1.03H5.6v-2.88h.14A1.7 1.7 0 0 0 7.3 9.86 1.7 1.7 0 0 0 6.96 8l-.06-.06L8.94 5.9 9 5.96a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56V4.6h2.88v.14a1.7 1.7 0 0 0 1.03 1.56A1.7 1.7 0 0 0 17.7 5.96l.06-.06 2.04 2.04-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03h.14v2.88h-.14A1.7 1.7 0 0 0 19.4 15z"/></svg><span>ตั้งค่า</span></a>
     </nav>
-    <div class="side-user"><b id="userName">กำลังโหลด...</b><span id="userSub">เจ้าหน้าที่ฝึกอบรม</span></div>
+    <div class="user"><b id="userName">กำลังโหลด...</b><span id="userSub">เจ้าหน้าที่ฝึกอบรม</span></div>
   </aside>
 
   <main class="main">
@@ -800,7 +799,7 @@ document.addEventListener('click', ()=>{
 });
 
 function toggleSidebar(){
-  const sidebar=document.querySelector('.sidebar'),main=document.querySelector('.main'),button=document.querySelector('.sidebar-toggle');
+  const sidebar=document.querySelector('.sidebar'),main=document.querySelector('.main'),button=document.getElementById('sidebarToggle');
   sidebar.classList.toggle('collapsed');main.classList.toggle('wide');button.classList.toggle('collapsed');
 }
 

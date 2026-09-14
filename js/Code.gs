@@ -104,7 +104,10 @@ const COL_VENDORS = [
   'category'
 ];
 
-// ── annual_plan — admin กรอกเองผ่าน Google Sheets โดยตรง เว็บอ่านอย่างเดียว (read-only) ──
+// ── annual_plan — แผนงานประจำปี คีย์หลักคือ 'planId' (รูปแบบ "<ปี พ.ศ. 4 หลัก><เลขรัน 3 หลัก>"
+//    เช่น "2570001") ไม่ใช่ 'no' เหมือน sheet อื่น — แก้ไข/เพิ่ม/ลบได้จากหน้า annual-plan.html
+//    โดยตรงแล้ว (ผ่าน action saveAnnualPlan/deleteAnnualPlan ที่ใช้ upsertRow/deleteRowByKey
+//    แบบระบุ keyCol='planId') ──
 const COL_ANNUAL_PLAN = [
   'planId','year','program','section','name','type','target','people',
   'form','quarter','times','days','operation','travel','plan','note','savedAt'
@@ -193,9 +196,21 @@ function handleRequest(e) {
         result = { courses: getAllRows(SH.COURSES, COL_COURSES) };
         break;
 
-      // ── งาน D: แผนงานประจำปี (read-only) ──────────────────────
+      // ── งาน D: แผนงานประจำปี — เดิม read-only จากฝั่งเว็บ ตอนนี้แก้ไข/เพิ่ม/ลบได้แล้วจากหน้า
+      // annual-plan.html โดยตรง (คีย์หลักคือ 'planId' ไม่ใช่ 'no' เหมือน sheet อื่น) ──────────
       case 'getAnnualPlan':
         result = getAllRows(SH.ANNUAL_PLAN, COL_ANNUAL_PLAN);
+        break;
+
+      case 'saveAnnualPlan':
+        result = upsertRow(SH.ANNUAL_PLAN, COL_ANNUAL_PLAN, parseData(), 'planId');
+        break;
+
+      case 'deleteAnnualPlan':
+        const delPlanId = p.planId || (p.data ? JSON.parse(p.data).planId : '');
+        if (!delPlanId) throw new Error('planId ว่างเปล่า — ไม่ลบ');
+        deleteRowByKey(SH.ANNUAL_PLAN, 'planId', delPlanId);
+        result = { deleted: delPlanId };
         break;
 
       case 'getPlanSummary':
@@ -268,16 +283,22 @@ function handleRequest(e) {
 /**
  * ฟังก์ชันเพิ่มหรือแก้ไขข้อมูลแถวใน Sheet
  * ✅ อัปเดตเฉพาะ Field ที่ตรงกับ Header เดิมที่มีอยู่ใน Sheet เท่านั้น
+ *
+ * keyCol (optional) — ชื่อคอลัมน์ที่ใช้เป็นคีย์หลักในการหาแถวเดิม ค่าเริ่มต้นคือ 'no'
+ * (ใช้กับ courses/budget/actual06/actual07 ทุกตัวที่คีย์ด้วยเลขที่หลักสูตร) — เพิ่มพารามิเตอร์นี้
+ * เพื่อให้ใช้ร่วมกับ sheet 'annual_plan' ที่คีย์ด้วย 'planId' แทนได้โดยไม่กระทบของเดิมเลย
+ * (ทุกจุดเรียกเดิมไม่ส่ง keyCol มา จึง fallback เป็น 'no' เหมือนพฤติกรรมเดิมทุกประการ)
  */
-function upsertRow(sheetName, cols, data) {
-  const sheet   = getSheet(sheetName);
-  let   no      = String(data.no || '').trim();
-  if (!no) throw new Error('no (เลขที่หลักสูตร) ว่างเปล่า — ไม่บันทึก');
+function upsertRow(sheetName, cols, data, keyCol) {
+  keyCol = keyCol || 'no';
+  const sheet  = getSheet(sheetName);
+  let   keyVal = String(data[keyCol] || '').trim();
+  if (!keyVal) throw new Error('(' + keyCol + ') ว่างเปล่า — ไม่บันทึก');
 
-  const allValues = sheet.getDataRange().getValues();
-  const headers   = allValues[0].map(h => String(h).trim());
-  const noColIdx  = headers.indexOf('no');
-  if (noColIdx < 0) throw new Error('ไม่พบคอลัมน์ "no" ใน Sheet: ' + sheetName);
+  const allValues  = sheet.getDataRange().getValues();
+  const headers    = allValues[0].map(h => String(h).trim());
+  const keyColIdx  = headers.indexOf(keyCol);
+  if (keyColIdx < 0) throw new Error('ไม่พบคอลัมน์ "' + keyCol + '" ใน Sheet: ' + sheetName);
 
   const tz = SS.getSpreadsheetTimeZone() || 'Asia/Bangkok';
 
@@ -295,13 +316,15 @@ function upsertRow(sheetName, cols, data) {
       }
     }
     if (typeof v === 'object') return JSON.stringify(v);
-    if (headerName === 'no') return "'" + String(v);
+    // 'no' (เลขที่หลักสูตร) และ 'planId' (เช่น "2570001") ต้องกันไม่ให้ Sheets แปลงเป็นตัวเลข/
+    // Scientific notation เอง — ใส่ apostrophe นำหน้าบังคับเป็นข้อความเสมอ
+    if (headerName === 'no' || headerName === 'planId') return "'" + String(v);
     return v;
   };
 
   // 1. ตรวจสอบว่ามีข้อมูลเดิมอยู่แล้วหรือไม่ (Update)
   for (let i = 1; i < allValues.length; i++) {
-    if (String(allValues[i][noColIdx]).trim() === no) {
+    if (String(allValues[i][keyColIdx]).trim() === keyVal) {
       const existingRow = allValues[i];
 
       const updatedRow = headers.map((h, colIdx) => {
@@ -312,7 +335,9 @@ function upsertRow(sheetName, cols, data) {
       });
 
       sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
-      return { action: 'updated', no, row: i + 1 };
+      const okRes = { action: 'updated', row: i + 1 };
+      okRes[keyCol] = keyVal;
+      return okRes;
     }
   }
 
@@ -324,7 +349,9 @@ function upsertRow(sheetName, cols, data) {
   });
 
   sheet.appendRow(newRow);
-  return { action: 'inserted', no };
+  const insRes = { action: 'inserted' };
+  insRes[keyCol] = keyVal;
+  return insRes;
 }
 
 function upsertVendor(data) {
@@ -416,15 +443,27 @@ function getRowByNo(sheetName, cols, no) {
   return null;
 }
 
-function deleteRowByNo(sheetName, no) {
-  const sheet  = getSheet(sheetName);
-  const values = sheet.getDataRange().getValues();
-  const targetNo = String(no).trim();
+/**
+ * deleteRowByKey — ลบทุกแถวที่คอลัมน์ keyCol ตรงกับ val (ทั่วไป ใช้ได้กับ sheet ไหนก็ได้
+ * ที่มีคอลัมน์ keyCol อยู่จริง) — deleteRowByNo() เดิมเป็นแค่ wrapper เรียกฟังก์ชันนี้ด้วย
+ * keyCol='no' ไว้กันไม่ต้องแก้จุดเรียกใช้เดิมทั้งไฟล์ (deleteCourse ยังเรียก deleteRowByNo ตามปกติ)
+ */
+function deleteRowByKey(sheetName, keyCol, val) {
+  const sheet   = getSheet(sheetName);
+  const values  = sheet.getDataRange().getValues();
+  const headers = values[0].map(h => String(h).trim());
+  const keyIdx  = headers.indexOf(keyCol);
+  if (keyIdx < 0) throw new Error('ไม่พบคอลัมน์ "' + keyCol + '" ใน Sheet: ' + sheetName);
+  const target = String(val).trim();
   for (let i = values.length - 1; i >= 1; i--) {
-    if (String(values[i][0]).trim() === targetNo) {
+    if (String(values[i][keyIdx]).trim() === target) {
       sheet.deleteRow(i + 1);
     }
   }
+}
+
+function deleteRowByNo(sheetName, no) {
+  deleteRowByKey(sheetName, 'no', no);
 }
 
 /**

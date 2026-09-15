@@ -70,6 +70,21 @@
     'ใบส่งของ/ใบแจ้งหนี้/ใบกำกับภาษี/ใบเสร็จรับเงิน',
   ];
 
+  // หมวดหมู่ร้านค้า (vendor category) — ใช้เฉพาะไฟล์ 06 (07/09 ไม่มี vendor picker) แต่ย้ายมารวม
+  // ไว้ที่นี่ด้วยเพื่อให้แก้/เพิ่มหมวดในอนาคตได้ที่เดียวกับ SEC_OPTS/SUB_OPTS/DOC_OPTS — v = key
+  // ภาษาอังกฤษที่เก็บลงคอลัมน์ category ของ Sheet vendors, l = label ไทยที่โชว์, icon = อิโมจิ
+  const VENDOR_CATEGORIES = [
+    {v:'head office',     l:'สำนักงาน กปภ.', icon:'🏢'},
+    {v:'PWA reg.10',     l:'กปภ.ข.10 และสาขา', icon:'🏢'},
+    {v:'PWA reg.9',     l:'กปภ.ข.9 และสาขา', icon:'🏢'},
+    {v:'Macro&7',       l:'แมคโคร & เซเว่นฯ',        icon:'🏪'},
+    {v:'shop',       l:'ร้านค้า',        icon:'🏪'},
+    {v:'hotel',      l:'โรงแรม',        icon:'🏨'},
+    {v:'fuel',       l:'ปั๊มน้ำมัน',      icon:'⛽'},
+    {v:'restaurant', l:'ร้านอาหาร',      icon:'🍽️'},
+    {v:'other',      l:'อื่นๆ',          icon:'📦'},
+  ];
+
   const LOAN_SECTIONS = new Set([SEC.FUEL, SEC.OFFICE, SEC.MISC, SEC.LUMP, SEC.VENUE, SEC.FOOD, SEC.STAFF_TRAVEL, SEC.EXT]);
 
   const SUB_OPTS = {
@@ -86,12 +101,7 @@
     ],
     [SEC.FOOD]: [
       { v: '',                       l: '— ไม่ระบุหมวดย่อย —' },
-      { v: SUB.FOOD_LUNCH_SNACK,     l: 'บิลรวม (กรอกคู่ (บิลค่าอาหารกลางวัน/อาหารว่าง))' },
-      // ✅ เพิ่ม 2 ตัวเลือกนี้ (งาน 06 ข้อ 4) — สำหรับกรณีอาหารกลางวัน/อาหารว่างมาคนละใบเสร็จ
-      // ไม่ต้องกรอกแบบคู่ (FOOD_LUNCH_SNACK ด้านบน) อีกต่อไป กรอกฟอร์มปกติ 4 ช่อง (val/vat/wht/total)
-      // เหมือนหมวดย่อยอื่นๆ ทั่วไป — ยอดยังไหลเข้า sec3_1/sec3_2 เหมือนเดิมทุกประการ (ดู
-      // SHEET_FIELD_MAP.actual06 ด้านล่างที่ map ไว้อยู่แล้ว + sumCollectState() ฝั่ง 06 ที่ aggregate
-      // sub ใดๆ แบบทั่วไปอยู่แล้ว ไม่ต้องแก้โค้ด aggregation เพิ่ม)
+      { v: SUB.FOOD_LUNCH_SNACK,     l: 'บิลรวม (กรอกคู่ (อาหารกลางวัน+อาหารว่าง))' },
       { v: SUB.FOOD_LUNCH,           l: 'อาหารกลางวัน (บิลแยก)' },
       { v: SUB.FOOD_SNACK,           l: 'อาหารว่างและเครื่องดื่ม (บิลแยก)' },
       { v: SUB.FOOD_DINNER,          l: 'อาหารเย็น' },
@@ -196,6 +206,7 @@
     SUB,
     SEC_OPTS,
     DOC_OPTS,
+    VENDOR_CATEGORIES,
     DYNAMIC_SEC_ORDER,
     LOAN_SECTIONS,
     SUB_OPTS,

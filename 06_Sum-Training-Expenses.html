@@ -894,14 +894,9 @@ let VENDOR_LIST = null;
 let _vendorPickerTargetId = null;
 let _vendorPickerCategory = 'all';
 
-const VENDOR_CATEGORIES = [
-  {v:'office',     l:'สำนักงาน กปภ.', icon:'🏢'},
-  {v:'shop',       l:'ร้านค้า',        icon:'🏪'},
-  {v:'hotel',      l:'โรงแรม',        icon:'🏨'},
-  {v:'fuel',       l:'ปั๊มน้ำมัน',      icon:'⛽'},
-  {v:'restaurant', l:'ร้านอาหาร',      icon:'🍽️'},
-  {v:'other',      l:'อื่นๆ',          icon:'📦'},
-];
+// ✅ ย้าย VENDOR_CATEGORIES เข้า schema.js แล้ว (SchemaTH.VENDOR_CATEGORIES) รวมจุดแก้กับ
+// SEC_OPTS/SUB_OPTS/DOC_OPTS ไว้ที่เดียว — เพิ่ม/แก้หมวดในอนาคตแก้ที่ schema.js ที่เดียวพอ
+const VENDOR_CATEGORIES = SchemaTH.VENDOR_CATEGORIES;
 function vendorCatLabel(v){ const c = VENDOR_CATEGORIES.find(c=>c.v===v); return c ? `${c.icon} ${c.l}` : '📦 อื่นๆ'; }
 
 async function ensureVendorList(force){

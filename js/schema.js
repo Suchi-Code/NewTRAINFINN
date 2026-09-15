@@ -61,6 +61,15 @@
 
   const DYNAMIC_SEC_ORDER = [SEC.FUEL, SEC.OFFICE, SEC.MISC, SEC.LUMP, SEC.VENUE, SEC.FOOD, SEC.STAFF_TRAVEL, SEC.EXT, SEC.INT];
 
+  // ตัวเลือกประเภทเอกสาร (ใบเสร็จ) — ใช้เฉพาะไฟล์ 06 — เป็น array ของ string ล้วน
+  // เพราะค่าที่เก็บกับข้อความที่โชว์เป็นอันเดียวกันอยู่แล้ว ไม่ต้องมี v/l แยกแบบ SEC_OPTS/SUB_OPTS
+  const DOC_OPTS = [
+    'ใบเสร็จรับเงิน/ใบกำกับภาษี',
+    'ใบสำคัญรับเงิน',
+    'บิลเงินสด',
+    'ใบส่งของ/ใบแจ้งหนี้/ใบกำกับภาษี/ใบเสร็จรับเงิน',
+  ];
+
   const LOAN_SECTIONS = new Set([SEC.FUEL, SEC.OFFICE, SEC.MISC, SEC.LUMP, SEC.VENUE, SEC.FOOD, SEC.STAFF_TRAVEL, SEC.EXT]);
 
   const SUB_OPTS = {
@@ -77,7 +86,12 @@
     ],
     [SEC.FOOD]: [
       { v: '',                       l: '— ไม่ระบุหมวดย่อย —' },
-      { v: SUB.FOOD_LUNCH_SNACK,     l: 'บิลรวม (กรอกคู่ อาหารกลางวัน+อาหารว่าง)' },
+      { v: SUB.FOOD_LUNCH_SNACK,     l: 'บิลรวม (กรอกคู่ (บิลค่าอาหารกลางวัน/อาหารว่าง))' },
+      // ✅ เพิ่ม 2 ตัวเลือกนี้ (งาน 06 ข้อ 4) — สำหรับกรณีอาหารกลางวัน/อาหารว่างมาคนละใบเสร็จ
+      // ไม่ต้องกรอกแบบคู่ (FOOD_LUNCH_SNACK ด้านบน) อีกต่อไป กรอกฟอร์มปกติ 4 ช่อง (val/vat/wht/total)
+      // เหมือนหมวดย่อยอื่นๆ ทั่วไป — ยอดยังไหลเข้า sec3_1/sec3_2 เหมือนเดิมทุกประการ (ดู
+      // SHEET_FIELD_MAP.actual06 ด้านล่างที่ map ไว้อยู่แล้ว + sumCollectState() ฝั่ง 06 ที่ aggregate
+      // sub ใดๆ แบบทั่วไปอยู่แล้ว ไม่ต้องแก้โค้ด aggregation เพิ่ม)
       { v: SUB.FOOD_LUNCH,           l: 'อาหารกลางวัน (บิลแยก)' },
       { v: SUB.FOOD_SNACK,           l: 'อาหารว่างและเครื่องดื่ม (บิลแยก)' },
       { v: SUB.FOOD_DINNER,          l: 'อาหารเย็น' },
@@ -181,6 +195,7 @@
     SEC,
     SUB,
     SEC_OPTS,
+    DOC_OPTS,
     DYNAMIC_SEC_ORDER,
     LOAN_SECTIONS,
     SUB_OPTS,

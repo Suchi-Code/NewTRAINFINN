@@ -206,6 +206,7 @@ table.rpt tbody tr:last-child td{border-bottom:none}
 <script src="js/date-th.js"></script>
 <script src="js/gas-api.js"></script>
 <script src="js/schema.js"></script>
+<script src="js/print-layout.js"></script>
 <script>checkAuth();</script>
 </head>
 <body>
@@ -297,11 +298,31 @@ table.rpt tbody tr:last-child td{border-bottom:none}
   </div><div class="sv-view" id="sv-preview">
     <div class="no-print print-toolbar">
       <button class="btn-back-form" onclick="sumGoForm()">◀ กลับแก้ไขข้อมูล</button>
+      <div class="spacing-ctrl">
+        <span>ระยะห่างบรรทัด</span>
+        <button class="btn-sp" id="sp_dec_06" onclick="rowSpacing06.adjust(-1)" title="ลดระยะห่าง">−</button>
+        <span class="sp-level" id="sp_level_06">ปกติ</span>
+        <button class="btn-sp" id="sp_inc_06" onclick="rowSpacing06.adjust(1)" title="เพิ่มระยะห่าง">＋</button>
+      </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
         <button class="btn-do-print" onclick="window.print()">🖨️ พิมพ์แบบฟอร์ม</button>
         <span style="font-size:11px;color:#9ca3af;">ควรตั้งค่าหน้ากระดาษที่ 100%</span>
       </div>
-      <button onclick="savePdf06(this)" style="background:linear-gradient(135deg,#1a56db,#1241b0);color:#fff;border:none;border-radius:8px;padding:10px 28px;font-family:'Sarabun',sans-serif;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(26,86,219,.3);display:flex;align-items:center;gap:6px;transition:all .2s;">💾 บันทึก PDF</button>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+        <button onclick="savePdf06(this)" style="background:linear-gradient(135deg,#1a56db,#1241b0);color:#fff;border:none;border-radius:8px;padding:10px 28px;font-family:'Sarabun',sans-serif;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(26,86,219,.3);display:flex;align-items:center;gap:6px;transition:all .2s;">💾 บันทึก PDF</button>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;">
+          <label for="pdf_scale_06">สเกลหน้ากระดาษ:</label>
+          <select id="pdf_scale_06" style="border:1px solid var(--gray-200);border-radius:5px;padding:2px 6px;font-family:'Sarabun',sans-serif;font-size:11px;color:#374151;cursor:pointer;">
+            <option value="70">70%</option>
+            <option value="75">75%</option>
+            <option value="80">80%</option>
+            <option value="85">85%</option>
+            <option value="90">90%</option>
+            <option value="95">95%</option>
+            <option value="100" selected>100%</option>
+          </select>
+        </div>
+      </div>
     </div>
     <div id="sm_doc" class="sum-print-wrap"></div>
 
@@ -456,7 +477,7 @@ let dc = {};
 }
 .btn-print-lg:hover{background:linear-gradient(135deg,#c07d0c,#f0b020);transform:translateY(-2px);box-shadow:0 6px 18px rgba(232,160,32,.5)}
 
-.sum-print-wrap{background:#fff;max-width:780px;margin:0 auto;padding:20px 28px;border:1px solid var(--border);font-family:'Sarabun',sans-serif;font-size:13px;line-height:1.5}
+.sum-print-wrap{background:#fff;max-width:780px;margin:0 auto;padding:20px 28px;border:1px solid var(--border);font-family:'Sarabun',sans-serif;font-size:13px;line-height:1.5;--row-pad-v:5px;}
 .sm-page{page-break-after:always}
 
 /* =====================================================
@@ -477,8 +498,16 @@ body.report-preview-mode footer{display:none!important;}
 .sm-hdr{text-align:center;margin-bottom:12px}
 .sm-hdr div{font-weight:700;font-size:14px;margin:2px 0}
 .sm-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-.sm-tbl th,.sm-tbl td{border:1px solid #000;padding:5px 6px;vertical-align:top}
+.sm-tbl th,.sm-tbl td{border:1px solid #000;padding:var(--row-pad-v,5px) 6px;vertical-align:top}
 .sm-tbl th{font-weight:700;text-align:center;background:#f2f2f2;white-space:nowrap}
+/* ✅ ปุ่มปรับระยะห่างบรรทัด — ย้ายมาจาก 05/07 (ใช้ร่วมกับ PaginateTH.makeRowSpacingControl) */
+.spacing-ctrl{display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--gray-200);border-radius:8px;padding:6px 8px 6px 14px;box-shadow:0 2px 6px rgba(0,0,0,.05);}
+.spacing-ctrl span{font-size:12px;font-weight:700;color:#374151;white-space:nowrap;}
+.spacing-ctrl .sp-level{font-size:12px;font-weight:700;color:var(--blue);min-width:48px;text-align:center;}
+.btn-sp{width:30px;height:30px;border:1.5px solid var(--gray-200);background:#fff;border-radius:6px;font-size:16px;font-weight:700;color:var(--blue-dark,var(--blue));cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1;}
+.btn-sp:hover{background:var(--blue-light);border-color:var(--blue);}
+.btn-sp:disabled{opacity:.35;cursor:not-allowed;}
+.btn-sp:disabled:hover{background:#fff;border-color:var(--gray-200);}
 .sm-cat td{font-weight:700}
 .sm-grp td{font-weight:700;padding-left:20px!important}
 .sm-carry td{font-weight:700;background:#fafafa;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -554,6 +583,16 @@ function computeMajorNumbers(rows){
 }
 const DOC_OPTS = SchemaTH.DOC_OPTS;
 let smCnt = 0;
+
+// ✅ ปุ่มปรับระยะห่างบรรทัด (ย้าย logic ไป PaginateTH.makeRowSpacingControl ใน js/print-layout.js
+// แล้ว — ไฟล์นี้แค่ผูก selector/id ของตัวเองเข้ากับ control ที่ใช้ร่วมกับ 05/07) sessionKey ต้อง
+// ไม่ซ้ำกับไฟล์อื่น (ใช้ตัวเลขไฟล์ต่อท้ายกันชนกัน)
+const rowSpacing06 = PaginateTH.makeRowSpacingControl({
+  containerSelector: '.sum-print-wrap',
+  sessionKey: 'rpt06_rowSpacing',
+  labelId: 'sp_level_06', decId: 'sp_dec_06', incId: 'sp_inc_06',
+});
+rowSpacing06.init();
 // TH_MON / normDateStr / sumFmtDate / sumFmtDateRange — logic วันที่ทั้งหมดย้ายไปรวมที่
 // js/date-th.js แล้ว (DateTH) ใช้ร่วมกันทุกไฟล์ ไฟล์นี้ไม่เคยชดเชย timezone +7 ชม. มาก่อน
 // (ต่างจาก 05/07 ที่แก้บั๊กนี้ไปแล้ว) — เปลี่ยนมาใช้ DateTH.normalize/format/formatRange
@@ -1817,28 +1856,11 @@ function sumBuildDoc(){
     r.segKey = `${r.secV}|${r.subLabel}|${r.w119}`;
   });
 
-  // หน้าแรกแสดงได้ 5 รายการ (มีหัวเอกสารกินพื้นที่ด้วย) หน้าที่ 2 เป็นต้นไปแสดงได้ 6 รายการ
-  // (ไม่มีหัวเอกสาร เหลือพื้นที่มากกว่า) เช่น หน้า 1: 1-5, หน้า 2: 6-11, หน้า 3: 12-17, ...
-  const FIRST_PAGE_SIZE = 5;
-  const REST_PAGE_SIZE = 6;
-  const pageBounds = [];
-  if (rows.length <= FIRST_PAGE_SIZE) {
-    pageBounds.push([0, rows.length]);
-  } else {
-    pageBounds.push([0, FIRST_PAGE_SIZE]);
-    let idx = FIRST_PAGE_SIZE;
-    while (idx < rows.length) {
-      const end = Math.min(idx + REST_PAGE_SIZE, rows.length);
-      pageBounds.push([idx, end]);
-      idx = end;
-    }
-  }
-  const totalPages = pageBounds.length;
-  let gVal=0,gVat=0,gWht=0,gTotal=0;
-  rows.forEach(r=>{gVal+=r.val;gVat+=r.vat;gWht+=r.wht;gTotal+=r.total;});
-
-  // ── รวมเงินยืมทั้งสิ้น: เฉพาะหมวด ค่าน้ำมันฯ/วัสดุสำนักงาน/วัสดุเบ็ดเตล็ด/จ้างเหมา/เช่าสถานที่/
-  // อาหารฯ/เดินทางเจ้าหน้าที่/วิทยากรภายนอก (ไม่รวมวิทยากรภายในที่จ่ายผ่าน Payroll)
+  // ✅ แบ่งหน้าโดยวัดความสูงจริงที่ render ออกมา (ผ่าน PaginateTH.paginateByHeight ใน
+  // js/print-layout.js) แทนการนับจำนวนรายการคงที่ต่อหน้าแบบเดิม (5 หน้าแรก/6 หน้าถัดไป) ซึ่งทำให้
+  // บางหน้าล้น (มีหัวข้อหมวด/หมวดย่อยแทรกเยอะ หรือที่อยู่ยาวจนตัดบรรทัด) บางหน้าเหลือพื้นที่เยอะ
+  // (รายการสั้นๆ ไม่มีหัวข้อแทรกเลย) — ตอนนี้ลองเพิ่มทีละแถวจริง วัดความสูงจริงเทียบกับพื้นที่พิมพ์
+  // ได้จริงของ A4 (หัก margin ตาม @page ด้านบนของไฟล์นี้) แล้วค่อยตัดหน้าตรงจุดที่พอดี
   const LOAN_SECTIONS = SchemaTH.LOAN_SECTIONS;
   const sumFields = (list) => list.reduce((a,r)=>({
     val:a.val+(r.val||0), vat:a.vat+(r.vat||0), wht:a.wht+(r.wht||0), total:a.total+(r.total||0)
@@ -1859,15 +1881,18 @@ function sumBuildDoc(){
     return sumFields(rows.slice(startIdx, endIdx));
   };
 
-  let html = '';
-  for(let p=0;p<totalPages;p++){
-    const [pStart, pEnd] = pageBounds[p];
+  // สร้าง HTML ของ "หนึ่งหน้า" จาก pStart..pEnd (ไม่รวม pEnd) — เรียกซ้ำได้ทั้งตอน "ลองแบ่งหน้าดู
+  // ว่าพอดีไหม" (ระหว่างวัดความสูง เรียกด้วย isLastGuess=false เผื่อพื้นที่ "ยกยอดไป" ไว้ก่อนเสมอ
+  // เพราะตอนนั้นยังไม่รู้ว่าจะเป็นหน้าสุดท้ายจริงไหม) กับตอน render จริงครั้งสุดท้าย (รู้ totalPages/
+  // isLast ที่ถูกต้องแล้ว) โดยไม่ต้องเขียนโค้ดเดิมซ้ำ 2 ที่ — เนื้อหาข้างในฟังก์ชันนี้เหมือนโค้ดเดิม
+  // ทุกประการ (ไม่ได้แก้ logic การแทรกหัวข้อ/ว.119 เลย) แค่ย้ายมาห่อเป็นฟังก์ชันแทนการวน for ตรงๆ
+  function renderPageHtml(pStart, pEnd, pageNum, totalPagesForLabel, isLast) {
     const pageRows = rows.slice(pStart, pEnd);
     const { val: carryVal, vat: carryVat, wht: carryWht, total: carryTotal } = cumulativeAsOf(pStart);
-    const isFirst = p===0, isLast = p===totalPages-1;
+    const isFirst = pStart === 0;
 
     let pg = `<div class="sm-page">`;
-    pg += `<div class="sm-pgnum">หน้า ${p+1}/${totalPages}</div>`;
+    pg += `<div class="sm-pgnum">หน้า ${pageNum+1}/${totalPagesForLabel}</div>`;
     if(isFirst){
       // ✅ หัวเอกสาร 4 บรรทัด — เปลี่ยนจาก <input type="text"> (บรรทัดเดียวตายตัว ตัดคำไม่ได้ ข้อความยาว
       // จะถูกครอบตัด) เป็น contenteditable div (ห่อบรรทัดอัตโนมัติเมื่อยาวเกิน ยังแก้ไขข้อความได้เหมือนเดิม
@@ -1913,6 +1938,8 @@ function sumBuildDoc(){
     // ในหมวดเดียวกัน แต่ทุกใบขึ้น (ว.119) หมด) — ตอนนี้ขึ้นหัวข้อย่อยใหม่ (ไม่มีเลขนำหน้า) ทุกครั้ง
     // ที่ segKey เปลี่ยนกลางหมวด (ไม่ว่าจะเพราะเปลี่ยนหมวดย่อยจริง หรือสถานะ ว.119 สลับ) หมวดที่
     // ไม่เคยมีหัวข้อย่อย (subAlways=false) จะไม่ขึ้นซ้ำถ้าทั้งหมวดสถานะเดียวกันหมด — reset ทุกหน้า
+    // (เหมือนเดิม — ถ้าหมวดต่อเนื่องข้ามหน้า หัวข้อจะขึ้นซ้ำอีกครั้งบนหน้าใหม่ ให้อ่านง่ายไม่ต้องเปิด
+    // ย้อนไปหน้าก่อน)
     let currentSegKey = null;
     const seqSpan = {};
     pageRows.forEach(r => { seqSpan[r.seq] = (seqSpan[r.seq]||0) + 1; });
@@ -2019,8 +2046,31 @@ function sumBuildDoc(){
       pg += grandRowHtml('รวมเงินยืมทั้งสิ้น', loanSum);
     }
     pg += `</tbody></table></div>`;
-    html += pg;
+    return pg;
   }
+
+  // ── ลองแบ่งหน้าจริง: เพิ่มทีละแถว วัดความสูงจริงเทียบกับพื้นที่พิมพ์ได้จริงของ A4 (หัก margin
+  // ตาม @page ของไฟล์นี้: บน 10mm ล่าง 15mm ซ้ายขวา 5mm) ตอนลองยังไม่รู้ว่าหน้าไหนจะเป็นหน้าสุดท้าย
+  // จึงเผื่อพื้นที่แถว "ยกยอดไป" ไว้ก่อนเสมอ (isLast=false) — ถ้าพอดีทั้งหมดเป๊ะ หน้าสุดท้ายจริงจะมี
+  // เนื้อที่เหลือเล็กน้อยจากที่เผื่อไว้เกินจำเป็น ยอมรับได้ (ปลอดภัยไว้ก่อนดีกว่าเสี่ยงล้น)
+  const PAGE_W_PX = PaginateTH.mmToPx(200); // 210mm - 5mm - 5mm
+  const PAGE_H_PX = PaginateTH.mmToPx(272); // 297mm - 10mm - 15mm
+  // ✅ ต้องส่งค่า --row-pad-v ปัจจุบัน (ที่ผู้ใช้อาจปรับไว้ผ่านปุ่มระยะห่างบรรทัด) ไปกับ holder
+  // ตอนวัดความสูงด้วย ไม่งั้นวัดผิด (ดูคอมเมนต์ใน PaginateTH.measureHeight ของ js/print-layout.js)
+  const rowPadV = ps.querySelector('.sum-print-wrap')?.style.getPropertyValue('--row-pad-v') || '5px';
+  const measure = (pgHtml) => PaginateTH.measureHeight(pgHtml, PAGE_W_PX, `--row-pad-v:${rowPadV};`);
+  const chunks = PaginateTH.paginateByHeight({
+    totalItems: rows.length,
+    renderChunk: (s, e, pageNum) => renderPageHtml(s, e, pageNum, 999, false),
+    measure,
+    budgetPx: PAGE_H_PX,
+  });
+  const totalPages = chunks.length;
+
+  let html = '';
+  chunks.forEach((c, p) => {
+    html += renderPageHtml(c.start, c.end, p, totalPages, p === totalPages - 1);
+  });
   ps.querySelector('#sm_doc').innerHTML = html;
 }
 
@@ -2129,7 +2179,7 @@ ${originalStyles}
         pdfOptions: {
           format: 'A4',
           landscape: false,
-          scale: 1,
+          scale: PaginateTH.getPdfScale('pdf_scale_06', 100), // ✅ อ่านจาก dropdown ที่เพิ่งเพิ่ม (ค่าเริ่มต้น 100%)
           margin: { top: '10mm', right: '5mm', bottom: '15mm', left: '5mm' },
           preferCSSPageSize: true,
           printBackground: true, // ⚠️ ต้องเปิดไว้ ไม่งั้นพื้นหลังสีเทาของแถวสรุป (รวมเงินยืมทั้งสิ้น ฯลฯ) จะหายไปจาก PDF ทั้งที่ CSS ตั้งไว้ถูกแล้ว

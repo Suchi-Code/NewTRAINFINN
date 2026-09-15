@@ -552,11 +552,7 @@ function computeMajorNumbers(rows){
   });
   return nums;
 }
-const DOC_OPTS = [
-  'ใบเสร็จรับเงิน/ใบกำกับภาษี',
-  'ใบสำคัญรับเงิน',
-  'บิลเงินสด',
-];
+const DOC_OPTS = SchemaTH.DOC_OPTS;
 let smCnt = 0;
 // TH_MON / normDateStr / sumFmtDate / sumFmtDateRange — logic วันที่ทั้งหมดย้ายไปรวมที่
 // js/date-th.js แล้ว (DateTH) ใช้ร่วมกันทุกไฟล์ ไฟล์นี้ไม่เคยชดเชย timezone +7 ชม. มาก่อน
@@ -642,12 +638,7 @@ function sumAddRow(){
         <div class="sum-inp" style="max-width:210px;">
           <label>หมวดหมู่</label>
           <select id="${id}_vcat">
-            <option value="office">🏢 สำนักงาน กปภ.</option>
-            <option value="shop">🏪 ร้านค้า</option>
-            <option value="hotel">🏨 โรงแรม</option>
-            <option value="fuel">⛽ ปั๊มน้ำมัน</option>
-            <option value="restaurant">🍽️ ร้านอาหาร</option>
-            <option value="other">📦 อื่นๆ</option>
+            ${VENDOR_CATEGORIES.map(c=>`<option value="${c.v}">${c.icon} ${c.l}</option>`).join('')}
           </select>
         </div>
         <div class="sum-inp" style="max-width:320px;flex:1;">
@@ -1810,7 +1801,25 @@ function sumBuildDoc(){
     const baseLabel = SEC_OPTS.find(s=>s.v===r.secV)?.l || '';
     r.secL = DYNAMIC_SEC_ORDER.includes(r.secV)
       ? `${majorNums[r.secV] || ''}. ${baseLabel}`
-      : baseLabel; // '1.'/'2.' ฝังเลขไว้ใน label อยู่แล้ว
+      : baseLabel; // '1.'/'2.' ฝังเลขไว้ใน label อยู่แล้ว (ไม่มีเลขหมวดย่อยอีกต่อไป — เอาออกแล้ว)
+
+    // ✅ หัวข้อย่อย (ไม่มีเลขนำหน้า) + ว.119 แยกตามใบเสร็จจริง — ใช้ตัดสินว่าแต่ละแถวควรอยู่
+    // ใน "กลุ่มย่อย" ไหน (MISC/OFFICE มีชื่อหมวดย่อยจริง ส่วนหมวดอื่นๆ ใช้ชื่อหมวดใหญ่เองแทน
+    // เพราะไม่มีหมวดย่อยให้แสดง) — subAlways=true คือหมวดที่ต้องขึ้นหัวข้อย่อยเสมอ (ทันทีหลัง
+    // หัวข้อหมวดใหญ่) แบบเดิม, subAlways=false คือหมวดที่ปกติไม่มีหัวข้อย่อย จะขึ้นบรรทัดซ้ำ
+    // ก็ต่อเมื่อสถานะ ว.119 เปลี่ยนกลางหมวดเท่านั้น (ดู segKey ตอน render)
+    if (r.secV === SchemaTH.SEC.MISC) {
+      r.subLabel = 'ค่าใช้จ่ายอื่นๆ';
+      r.subAlways = true;
+    } else if (r.secV === SchemaTH.SEC.OFFICE && r.subV) {
+      r.subLabel = r.subV === SchemaTH.SUB.OFFICE_STATIONERY ? 'ค่าเครื่องเขียนแบบพิมพ์'
+        : (r.subV === SchemaTH.SUB.OFFICE_COPY ? 'ค่าถ่ายเอกสารและเข้าเล่ม' : baseLabel);
+      r.subAlways = true;
+    } else {
+      r.subLabel = baseLabel;
+      r.subAlways = false;
+    }
+    r.segKey = `${r.secV}|${r.subLabel}|${r.w119}`;
   });
 
   // หน้าแรกแสดงได้ 5 รายการ (มีหัวเอกสารกินพื้นที่ด้วย) หน้าที่ 2 เป็นต้นไปแสดงได้ 6 รายการ
@@ -1904,14 +1913,12 @@ function sumBuildDoc(){
       <td class="sm-tr">${smF2(carryWht)}</td><td class="sm-tr">${smFmt(carryTotal)}</td></tr>`;
 
     let lastSec = '';
-    let lastSecHasW119 = false;
-    // ✅ หัวข้อย่อย 1.1/1.2 ของหมวดวัสดุสำนักงาน (SEC.OFFICE) — ล้อไฟล์ 05: "1.1 ค่าเครื่องเขียนแบบพิมพ์"
-    // / "1.2 ค่าถ่ายเอกสารและเข้าเล่ม" ต่างจาก MISC ตรงที่มี 2 หมวดย่อย จึงนับเลขจาก "ลำดับที่ปรากฏจริง"
-    // ในแถว (ไม่ fix ตายตัวว่าเครื่องเขียน=1/ถ่ายเอกสาร=2 เพราะไฟล์นี้มีแถวจริงตามลำดับที่ผู้ใช้กรอก
-    // ต่างจากไฟล์ 05 ที่เป็นแค่ยอดรวม 2 ก้อนคงที่) — ต้องกรอกเครื่องเขียนทั้งหมดก่อนถ่ายเอกสารทั้งหมด
-    // เท่านั้น (ดู sumValidateOrder()) ไม่งั้นเลขที่ขึ้นจะสลับกับไฟล์ 05 — reset ทุกหน้าเหมือน lastSec
-    let lastOfficeSub = null;
-    let officeSubCounter = 0;
+    // ✅ segKey = `${secV}|${subLabel}|${w119}` (คำนวณไว้แล้วต่อแถวใน r.segKey ด้านบน) — ใช้แทน
+    // ระบบเดิมที่ scan หา (ว.119) ล่วงหน้าทั้งหมวดแล้วแปะติดหัวข้อหมวดเดียว (บั๊ก: ติ๊กแค่บางใบ
+    // ในหมวดเดียวกัน แต่ทุกใบขึ้น (ว.119) หมด) — ตอนนี้ขึ้นหัวข้อย่อยใหม่ (ไม่มีเลขนำหน้า) ทุกครั้ง
+    // ที่ segKey เปลี่ยนกลางหมวด (ไม่ว่าจะเพราะเปลี่ยนหมวดย่อยจริง หรือสถานะ ว.119 สลับ) หมวดที่
+    // ไม่เคยมีหัวข้อย่อย (subAlways=false) จะไม่ขึ้นซ้ำถ้าทั้งหมวดสถานะเดียวกันหมด — reset ทุกหน้า
+    let currentSegKey = null;
     const seqSpan = {};
     pageRows.forEach(r => { seqSpan[r.seq] = (seqSpan[r.seq]||0) + 1; });
     const seqRendered = {};
@@ -1924,43 +1931,27 @@ function sumBuildDoc(){
         pg += `<tr class="sm-blank"><td colspan="7">&nbsp;</td></tr>`;
       }
 
-      // 1. ตรวจสอบการเปลี่ยนหมวดหมู่ (เพื่อใส่หัวข้อหมวดใหญ่ เช่น 2. ค่าวัสดุเบ็ดเตล็ด)
+      // 1. เปลี่ยนหมวดใหญ่ → ขึ้นหัวข้อหมวดใหญ่ (มีเลขนำหน้า เช่น "2. ค่าวัสดุเบ็ดเตล็ด") ต่อท้าย
+      // (ว.119) เฉพาะตอนแถวแรกของหมวดติ๊กไว้ (หมวดที่ไม่มีหัวข้อย่อยเลย เช่น ค่าน้ำมันฯ จะใช้บรรทัด
+      // นี้บรรทัดเดียวแสดงสถานะ ว.119 ของ "ช่วงแรก" — ถ้ากลางหมวดสถานะเปลี่ยน ดูข้อ 2 ด้านล่าง)
       if (r.secV !== lastSec) {
-        // ถ้ารายการใดในกลุ่มหมวดนี้ (แถวติดกันที่หมวดเดียวกัน) ติ๊ก "ค่าใช้จ่ายตาม ว.119" ไว้ → ใส่ (ว.119) ต่อท้ายหัวข้อหมวด
-        let hasW119 = false;
-        for (let j = ridx; j < pageRows.length && pageRows[j].secV === r.secV; j++) {
-          if (pageRows[j].w119) { hasW119 = true; break; }
-        }
-        pg += `<tr class="sm-grp"><td class="sm-ind1 sm-tl" colspan="7">${r.secL}${hasW119 ? ' (ว.119)' : ''}</td></tr>`;
+        pg += `<tr class="sm-grp"><td class="sm-ind1 sm-tl" colspan="7">${r.secL}${r.w119 ? ' (ว.119)' : ''}</td></tr>`;
         lastSec = r.secV;
-        lastSecHasW119 = hasW119;
+        currentSegKey = null; // บังคับให้เช็คหัวข้อย่อยใหม่เสมอตอนเปลี่ยนหมวด (ข้อ 2)
       }
 
-      // 2. [จุดนี้!] แทรกบรรทัด x.1 หลังจากที่บรรทัดหัวข้อหมวดวัสดุเบ็ดเตล็ด (SEC.MISC) ถูกใส่ลงไปแล้ว
-      if (r.secV === SchemaTH.SEC.MISC && !window.hasAddedOthers) {
+      // 2. เปลี่ยนกลุ่มย่อยจริง (subLabel เปลี่ยน) หรือสถานะ ว.119 สลับกลางหมวดเดียวกัน → ขึ้นหัวข้อ
+      // ย่อยใหม่ (ไม่มีเลขนำหน้า) หมวดที่มีหัวข้อย่อยจริง (MISC/OFFICE, subAlways=true) จะขึ้นทันที
+      // หลังหัวข้อหมวดใหญ่เสมอ ส่วนหมวดที่ไม่มีหัวข้อย่อย (subAlways=false) จะขึ้นก็ต่อเมื่อสถานะ
+      // ว.119 เปลี่ยนจริงๆ กลางหมวดเท่านั้น (ช่วงแรกอาศัยหัวข้อหมวดใหญ่ข้อ 1 แสดงแทนไปแล้ว)
+      if (r.segKey !== currentSegKey && (r.subAlways || currentSegKey !== null)) {
         pg += `<tr>
                  <td class="sm-tl" colspan="7" style="padding-left: 20px; font-weight: bold; font-style: normal;">
-                  &nbsp;&nbsp;&nbsp;${majorNums[SchemaTH.SEC.MISC] || ''}.1 ค่าใช้จ่ายอื่นๆ${lastSecHasW119 ? ' (ว.119)' : ''}
+                  &nbsp;&nbsp;&nbsp;${r.subLabel}${r.w119 ? ' (ว.119)' : ''}
                  </td>
                </tr>`;
-        window.hasAddedOthers = true; 
       }
-
-      // 2b. แทรกหัวข้อย่อย "1.1 ค่าเครื่องเขียนแบบพิมพ์" / "1.2 ค่าถ่ายเอกสารและเข้าเล่ม" เฉพาะตอน
-      // เปลี่ยนหมวดย่อยจริง (มีรายการจริงของหมวดย่อยนั้นเท่านั้นถึงจะขึ้นหัวข้อ — ไม่ขึ้นครบทั้งคู่เสมอ)
-      if (r.secV === SchemaTH.SEC.OFFICE && r.subV && r.subV !== lastOfficeSub) {
-        officeSubCounter++;
-        const officeSubLabel = r.subV === SchemaTH.SUB.OFFICE_STATIONERY ? 'ค่าเครื่องเขียนแบบพิมพ์'
-          : (r.subV === SchemaTH.SUB.OFFICE_COPY ? 'ค่าถ่ายเอกสารและเข้าเล่ม' : '');
-        if (officeSubLabel) {
-          pg += `<tr>
-                   <td class="sm-tl" colspan="7" style="padding-left: 20px; font-weight: bold; font-style: normal;">
-                    &nbsp;&nbsp;&nbsp;${majorNums[SchemaTH.SEC.OFFICE] || ''}.${officeSubCounter} ${officeSubLabel}${lastSecHasW119 ? ' (ว.119)' : ''}
-                   </td>
-                 </tr>`;
-        }
-        lastOfficeSub = r.subV;
-      }
+      currentSegKey = r.segKey;
 
       // 3. แสดงข้อมูลแถวรายการ (แสดงตามปกติ)
       const showSeq = !seqRendered[r.seq];
@@ -2022,8 +2013,6 @@ function sumBuildDoc(){
         pg += hasInt ? grandRowHtml('รวมค่าสมนาคุณเป็นเงิน', intSum) : grandRowHtml('รวมเงินยืมทั้งสิ้น', loanSum);
       }
     });
-    // Reset ตัวแปรหลังจบลูปหน้าปัจจุบัน
-    window.hasAddedOthers = false;
 
     if(!isLast){
       const { val: sv, vat: svat, wht: swht, total: st } = cumulativeAsOf(pEnd);

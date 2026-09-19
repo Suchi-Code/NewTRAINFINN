@@ -13,6 +13,7 @@
 <script src="js/date-th.js"></script>
 <script src="js/gas-api.js"></script>
 <script src="js/schema.js"></script>
+<script src="js/print-layout.js"></script>
 <script>checkAuth();</script>
 <style>
 /* ============================================================
@@ -73,9 +74,9 @@ body{font-family:'Sarabun',sans-serif;background:#f3f4f6;color:#1e2533;font-size
 }
 .hdr-inp:focus{border-bottom-color:#1d5fa8;background:#f0f7ff}
 @media print{.hdr-inp{border-bottom:none!important;background:transparent!important}}
-.doc-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px}
-.doc-table th,.doc-table td{border:1px solid #000;padding:5px 7px;vertical-align:top}
-.doc-table th{background:#e8ecf5;font-weight:700;text-align:center;white-space:nowrap}
+.doc-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px;table-layout:fixed}
+.doc-table th,.doc-table td{border:1px solid #000;padding:5px 7px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
+.doc-table th{background:#e8ecf5;font-weight:700;text-align:center;white-space:normal}
 .doc-table td.tc{text-align:center}
 .doc-table td.tr{text-align:right;white-space:nowrap}
 .doc-table td.tl{text-align:left}
@@ -83,6 +84,10 @@ body{font-family:'Sarabun',sans-serif;background:#f3f4f6;color:#1e2533;font-size
 .row-sub td{font-weight:700;padding-left:16px!important}
 .row-sub2 td{font-weight:600;padding-left:28px!important}
 .row-grand td{font-weight:700;background:#d9e1f2}
+/* ── แบ่งหน้าตามความสูงจริง (PaginateTH) — ไม่มียกยอด/เลขหน้า ── */
+.doc-page{page-break-after:always}
+.doc-page:last-child{page-break-after:avoid}
+.doc-table tbody tr{page-break-inside:avoid}
 
 /* ============================================================
    PRINT MEDIA
@@ -200,19 +205,67 @@ function toISODate(v){
 /* ============================================================
    ROWS STATE (data only — ไม่มี editable DOM table อีกต่อไป)
    ============================================================ */
-let editRows = [];   // [{seq,doc,name,branch,taxid,addr,date,acct,val,vat,wht,total}, ...]
+let editRows = [];   // [{seq,doc,name,branch,taxid,addr1,tambon,amphoe,province,zip,date,acct,val,vat,wht,total}, ...]
 
-function buildAddr(d){
-  const parts = [];
-  if(d.addr1)    parts.push(d.addr1);
-  const sub = [
-    d.tambon   ? 'ต.'+d.tambon   : '',
-    d.amphoe   ? 'อ.'+d.amphoe   : '',
-    d.province ? 'จ.'+d.province : '',
-    d.zip      || ''
-  ].filter(Boolean).join(' ');
-  if(sub) parts.push(sub);
-  return parts.join(' ');
+/* ============================================================
+   ที่อยู่แบบยืดหยุ่น (ตัดขึ้นบรรทัดใหม่ + รองรับกรุงเทพฯ แขวง/เขต) — พอร์ตมาจาก
+   ไฟล์ 06 (sumBuildDoc) ทั้งชุด แทนที่ buildAddr() เดิมที่รวมทุกอย่างบรรทัดเดียว
+   คืนค่าเป็น array ของบรรทัด (1-3 บรรทัด) ให้ผู้เรียกใช้ต่อเป็น <div> ต่อบรรทัดเอง
+   ============================================================ */
+function buildAddrLines(r){
+  const isBkk = /กทม|กรุงเทพ/.test(r.province || '');
+  const subDistLabel = isBkk ? 'แขวง' : 'ต.';
+  const distLabel     = isBkk ? 'เขต'  : 'อ.';
+  const provPart       = r.province ? (isBkk ? r.province : 'จ.' + r.province) : '';
+
+  const addr1Text = r.addr1 || '';
+  const tambonText = r.tambon ? subDistLabel + r.tambon : '';
+  const amphoeText = r.amphoe ? distLabel + r.amphoe : '';
+  const provZipText = [provPart, r.zip].filter(Boolean).join(' ');
+  const addr1TambonCombined = [addr1Text, tambonText].filter(Boolean).join(' ');
+  const tambonAmphoeCombined = [tambonText, amphoeText].filter(Boolean).join(' ');
+
+  const addrLines = [];
+  if (addr1TambonCombined.length <= 30) {
+    if (addr1TambonCombined) addrLines.push(addr1TambonCombined);
+    const line2 = [amphoeText, provZipText].filter(Boolean).join(' ');
+    if (line2) addrLines.push(line2);
+  } else {
+    if (addr1Text) addrLines.push(addr1Text);
+    if (tambonAmphoeCombined.length <= 30) {
+      const line2 = [tambonAmphoeCombined, provZipText].filter(Boolean).join(' ');
+      if (line2) addrLines.push(line2);
+    } else {
+      if (tambonAmphoeCombined) addrLines.push(tambonAmphoeCombined);
+      if (provZipText) addrLines.push(provZipText);
+    }
+  }
+  return addrLines;
+}
+
+/* ============================================================
+   แปลงตัวเลขทั้งหมดในโหนดที่กำหนดเป็นเลขไทย (ตัวหนังสือ/ตัวเลขในตาราง) —
+   ก็อปมาจากไฟล์ 06 (convertToThaiNumerals) ทั้งฟังก์ชัน ไม่มีการปรับ logic
+   ============================================================ */
+function convertToThaiNumerals(node) {
+  const thaiNums = ['๐','๑','๒','๓','๔','๕','๖','๗','๘','๙'];
+
+  if (node.nodeType === 3) { // Text Node
+    node.nodeValue = node.nodeValue.replace(/\d/g, d => thaiNums[d]);
+  } else if (node.nodeType === 1) {
+    if (node.tagName === 'INPUT' && node.type === 'number') return;
+
+    if (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA') {
+      if (node.placeholder) node.placeholder = node.placeholder.replace(/\d/g, d => thaiNums[d]);
+      if (node.type !== 'number' && node.value) {
+        node.value = node.value.replace(/\d/g, d => thaiNums[d]);
+      }
+    } else {
+      for (let child of node.childNodes) {
+        convertToThaiNumerals(child);
+      }
+    }
+  }
 }
 
 function esc(s){
@@ -270,8 +323,21 @@ let SECTION_NUMS = {};
 const LEGACY_SEC09_MAP = {
   '1': SchemaTH.SEC.OFFICE, '2': SchemaTH.SEC.MISC, '3': SchemaTH.SEC.FOOD, '4': SchemaTH.SEC.STAFF_TRAVEL,
 };
+// ⚠️ เพิ่มใหม่: เดิม 09 ใช้แค่ sec ไม่ได้ใช้ sub เลย (ดูคอมเมนต์เดิม) แต่ตอนนี้ต้องใช้ sub เพื่อ
+// แสดงหัวข้อย่อย (เช่น "ค่าเครื่องเขียนแบบพิมพ์"/"ค่าถ่ายเอกสารและเข้าเล่ม") แบบเดียวกับไฟล์ 06/07
+// จึงต้อง migrate รหัสเก่า→ใหม่ของ sub ด้วย (คัดลอกจาก LEGACY_SUB07_MAP ทั้งชุด)
+const LEGACY_SUB09_MAP = {
+  '1_1': SchemaTH.SUB.OFFICE_STATIONERY, '1_2': SchemaTH.SUB.OFFICE_COPY,
+  'venue_meet': SchemaTH.SUB.VENUE_MEETING, 'venue_vip': SchemaTH.SUB.VENUE_VIP_LODGING, 'venue_staff': SchemaTH.SUB.VENUE_STAFF_LODGING,
+  '3_12': SchemaTH.SUB.FOOD_LUNCH_SNACK, '3_dinner': SchemaTH.SUB.FOOD_DINNER, '3_3': SchemaTH.SUB.FOOD_SPEAKER_DINNER,
+  '4_1': SchemaTH.SUB.STAFF_ALLOWANCE, '4_2': SchemaTH.SUB.STAFF_LODGING, '4_3': SchemaTH.SUB.STAFF_TRANSPORT,
+  'ext_honor': SchemaTH.SUB.EXT_HONORARIUM, 'ext_lodging': SchemaTH.SUB.EXT_LODGING, 'ext_travel': SchemaTH.SUB.EXT_TRAVEL,
+  'int_honor': SchemaTH.SUB.INT_HONORARIUM,
+  'int_lodging': '', 'int_travel': '', // ตัดออกจาก schema แล้ว — ไม่มีปลายทางให้ map
+};
 function migrateLegacyRow09(r){
   if (r && r.sec && LEGACY_SEC09_MAP[r.sec] !== undefined) r.sec = LEGACY_SEC09_MAP[r.sec];
+  if (r && r.sub && LEGACY_SUB09_MAP[r.sub] !== undefined) r.sub = LEGACY_SUB09_MAP[r.sub];
   return r;
 }
 
@@ -349,12 +415,19 @@ async function loadFromGSheet09(no){
       const secLabel = (SEC_OPTS.find(s=>s.v===r.sec)?.l) || '';
       return {
         sec   : r.sec    || '',
+        sub   : r.sub    || '',
         secNum: SECTION_NUMS[r.sec] || '',
         secLabel,
         doc   : r.doc    || '',
         name  : nameVal,
         branch: r.branch || '',
-        addr  : r.addr   || buildAddr(r),
+        // ⚠️ เก็บฟิลด์ที่อยู่แบบแยกส่วน (ไม่รวมเป็นสตริงเดียวแบบ buildAddr() เดิม) เพื่อให้
+        // buildDocHtml() คำนวณการตัดบรรทัดที่อยู่แบบยืดหยุ่นได้ (ดู buildAddrLines())
+        addr1   : r.addr1   || '',
+        tambon  : r.tambon  || '',
+        amphoe  : r.amphoe  || '',
+        province: r.province|| '',
+        zip     : r.zip     || '',
         taxid : r.taxid  || '',
         date  : r.date   || '',
         acct  : r.acct   || '',
@@ -413,12 +486,17 @@ function buildDocHtml(){
   const rows = sortedRows.map((r,i)=>({
     seq   : i+1,
     sec   : r.sec||'',
+    sub   : r.sub||'',
     secNum: r.secNum||'',
     secLabel: r.secLabel||'',
     doc   : r.doc||'',
     name  : r.name||'',
     branch: r.branch||'',
-    addr  : r.addr||'',
+    addr1   : r.addr1||'',
+    tambon  : r.tambon||'',
+    amphoe  : r.amphoe||'',
+    province: r.province||'',
+    zip     : r.zip||'',
     taxid : r.taxid||'',
     date  : r.date||'',
     acct  : r.acct||'',
@@ -428,6 +506,25 @@ function buildDocHtml(){
     total : r.total||0,
   }));
 
+  // ✅ หัวข้อย่อย (ไม่มีเลขนำหน้า) — ล้อ pattern เดียวกับไฟล์ 06 (sumBuildDoc): บางหมวด
+  // (วัสดุสำนักงาน/วัสดุเบ็ดเตล็ด) ต้องขึ้นหัวข้อย่อยทันทีหลังหัวข้อหมวดใหญ่เสมอ (subAlways=true)
+  // หมวดอื่นไม่มีหัวข้อย่อยจริง ใช้ secLabel เดิมแทน (subAlways=false) ทุกแถวในไฟล์นี้เป็น
+  // ว.119 อยู่แล้ว (กรองมาก่อนหน้านี้) จึงต่อ "(ว.119)" ท้ายทุกหัวข้อเสมอเหมือนพฤติกรรมเดิม
+  rows.forEach(r=>{
+    if (r.sec === SchemaTH.SEC.MISC) {
+      r.subLabel = 'ค่าใช้จ่ายอื่นๆ';
+      r.subAlways = true;
+    } else if (r.sec === SchemaTH.SEC.OFFICE && r.sub) {
+      r.subLabel = r.sub === SchemaTH.SUB.OFFICE_STATIONERY ? 'ค่าเครื่องเขียนแบบพิมพ์'
+        : (r.sub === SchemaTH.SUB.OFFICE_COPY ? 'ค่าถ่ายเอกสารและเข้าเล่ม' : r.secLabel);
+      r.subAlways = true;
+    } else {
+      r.subLabel = r.secLabel;
+      r.subAlways = false;
+    }
+    r.segKey = `${r.sec}|${r.subLabel}`;
+  });
+
   let gVal=0,gVat=0,gWht=0,gTotal=0;
   rows.forEach(r=>{gVal+=r.val;gVat+=r.vat;gWht+=r.wht;gTotal+=r.total;});
 
@@ -436,26 +533,55 @@ function buildDocHtml(){
   const colCount = hasWht ? 7 : 6;
   const itemColWidth = hasWht ? 44 : 54;
 
-  /* ---- แถวข้อมูล (แทรกหัวข้อหมวดตามที่ติ๊ก ว.119 จริง) ---- */
-  let bodyHtml='';
-  if(rows.length===0){
-    bodyHtml=`<tr><td colspan="${colCount}" style="text-align:center;padding:16px;color:#888;font-style:italic;">ไม่มีรายการ</td></tr>`;
-  } else {
+  const theadHtml = `
+    <thead>
+      <tr>
+        <th style="width:6%">ลำดับที่</th>
+        <th style="width:${itemColWidth}%" class="tl">รายการ</th>
+        <th style="width:10%">รหัสบัญชี</th>
+        <th style="width:10%">มูลค่าสินค้า</th>
+        <th style="width:10%">ภาษีมูลค่าเพิ่ม</th>
+        ${hasWht ? '<th style="width:10%">ภาษีหัก ณ ที่จ่าย</th>' : ''}
+        <th style="width:10%">จำนวนเงิน</th>
+      </tr>
+    </thead>`;
+
+  /* ---- แถวข้อมูลของ "หนึ่งชุด" (chunk = rows.slice(startIdx,endIdx)) ----
+     แทรกหัวข้อหมวดใหญ่/หัวข้อย่อยใหม่ตามปกติ — รีเซ็ต lastSec/currentSegKey ทุกครั้งที่ขึ้น
+     หน้าใหม่ (เหมือนไฟล์ 06) เพื่อให้หมวดที่ต่อเนื่องข้ามหน้าขึ้นหัวข้อซ้ำอีกครั้ง อ่านง่ายไม่ต้อง
+     เปิดย้อนไปหน้าก่อน — ไฟล์นี้ไม่มี "ยกยอดมา/ยกยอดไป" และไม่มีเลขหน้า ตามที่ตกลงกันไว้ */
+  function renderRowsHtml(startIdx, endIdx, isFirstChunk){
+    let out = '';
+    if(isFirstChunk) out += `<tr class="row-cat"><td colspan="${colCount}">ก. ค่าดำเนินการฝึกอบรม</td></tr>`;
+
+    if(rows.length===0){
+      out += `<tr><td colspan="${colCount}" style="text-align:center;padding:16px;color:#888;font-style:italic;">ไม่มีรายการ</td></tr>`;
+      return out;
+    }
+
     let lastSec = null;
-    rows.forEach(r=>{
+    let currentSegKey = null;
+    rows.slice(startIdx, endIdx).forEach(r=>{
       if(r.sec !== lastSec){
         const num = r.secNum ? r.secNum + '. ' : '';
-        bodyHtml += `<tr class="row-sub"><td colspan="${colCount}">${num}${r.secLabel} (ว.119)</td></tr>`;
+        out += `<tr class="row-sub"><td colspan="${colCount}">${num}${r.secLabel} (ว.119)</td></tr>`;
         lastSec = r.sec;
+        currentSegKey = null;
       }
+      if (r.segKey !== currentSegKey && (r.subAlways || currentSegKey !== null)) {
+        out += `<tr><td colspan="${colCount}" style="padding-left:20px;font-weight:bold;font-style:normal;">&nbsp;&nbsp;&nbsp;${r.subLabel} (ว.119)</td></tr>`;
+      }
+      currentSegKey = r.segKey;
+
       const detailLines=[];
       if(r.doc)    detailLines.push(r.doc);
       if(r.name)   detailLines.push(r.name);
       if(r.branch) detailLines.push(r.branch);
       if(r.taxid)  detailLines.push('เลขประจำตัวผู้เสียภาษี '+r.taxid);
-      if(r.addr)   detailLines.push(r.addr);
+      buildAddrLines(r).forEach(l => detailLines.push(l));
       if(r.date)   detailLines.push('ลงวันที่ '+fmtDate(r.date));
-      bodyHtml+=`<tr>
+
+      out += `<tr>
         <td class="tc">${r.seq}</td>
         <td class="tl" style="line-height:1.55">${detailLines.map(l=>`<div>${l}</div>`).join('')}</td>
         <td class="tc">${r.acct}</td>
@@ -465,47 +591,64 @@ function buildDocHtml(){
         <td class="tr">${fmtMoney(r.total)}</td>
       </tr>`;
     });
+    return out;
   }
+
+  /* ---- ตารางของ "หนึ่งหน้า" — thead ซ้ำทุกหน้า, แถวรวมท้ายตาราง (row-grand) แสดงเฉพาะ
+     หน้าสุดท้ายเท่านั้น (isLast=true) ---- */
+  function renderPageHtml(startIdx, endIdx, isLast){
+    let pg = `<table class="doc-table">${theadHtml}<tbody>`;
+    pg += renderRowsHtml(startIdx, endIdx, startIdx === 0);
+    if(isLast){
+      pg += `<tr class="row-grand">
+        <td colspan="3" class="tc">รวมค่าใช้จ่ายตาม ว.119 ทั้งสิ้น</td>
+        <td class="tr">${fmtMoney(gVal)}</td>
+        <td class="tr">${fmtMoney2(gVat)}</td>
+        ${hasWht ? `<td class="tr">${fmtMoney2(gWht)}</td>` : ''}
+        <td class="tr">${fmtMoney(gTotal)}</td>
+      </tr>`;
+    }
+    pg += `</tbody></table>`;
+    return pg;
+  }
+
+  /* ---- แบ่งหน้าโดยวัดความสูงจริง (PaginateTH, js/print-layout.js) แทนการปล่อยให้เบราว์เซอร์
+     ตัดหน้าเอง — พื้นที่พิมพ์อ้างอิงจาก @page{size:A4 portrait;margin:0.5in 0.47in 0 0.47in}
+     ของไฟล์นี้ (กว้าง 210-11.94*2≈186.1mm, สูง 297-12.7-0≈284.3mm)
+     ระหว่าง "ลอง" วัดความสูง ให้ render เสมือนเป็นหน้าสุดท้าย (รวมแถว row-grand ด้วย) เพื่อเผื่อ
+     พื้นที่แถวสรุปท้ายตารางไว้ล่วงหน้าเสมอ กันหน้าสุดท้ายล้นพอดี (ไม่มียกยอด/เลขหน้าให้ต้องคำนวณ
+     เพิ่มแบบไฟล์ 06 จึงไม่ต้องมี "รอบวัด" กับ "รอบ render จริง" แยกความหมายกันเหมือนไฟล์นั้น) ---- */
+  const PAGE_W_PX = PaginateTH.mmToPx(186.1);
+  const PAGE_H_PX = PaginateTH.mmToPx(284.3);
+  const measure = (html) => PaginateTH.measureHeight(html, PAGE_W_PX);
+  const chunks = rows.length
+    ? PaginateTH.paginateByHeight({
+        totalItems: rows.length,
+        renderChunk: (s, e) => renderPageHtml(s, e, true),
+        measure,
+        budgetPx: PAGE_H_PX,
+      })
+    : [{ start: 0, end: 0 }];
+
+  let tablesHtml = '';
+  chunks.forEach((c, idx) => {
+    const isLast = idx === chunks.length - 1;
+    tablesHtml += `<div class="doc-page">${renderPageHtml(c.start, c.end, isLast)}</div>`;
+  });
 
   return `<div class="doc-wrap">
 <div class="doc-title">
-  <input class="hdr-inp" id="ph_title" value="">
-  <input class="hdr-inp" id="ph_title" value="รายละเอียดค่าใช้จ่ายกรณีจัดซื้อ / จัดจ้างพัสดุ">
-  <input class="hdr-inp" id="ph_title" value="ที่เกี่ยวกับค่าใช้จ่ายในการบริหารงานที่มีวงเงินฯ ครั้งละไม่เกิน 10,000 บาท">
+  <div class="hdr-inp" id="ph_title1" contenteditable="true"></div>
+  <div class="hdr-inp" id="ph_title2" contenteditable="true">รายละเอียดค่าใช้จ่ายกรณีจัดซื้อ / จัดจ้างพัสดุ</div>
+  <div class="hdr-inp" id="ph_title3" contenteditable="true">ที่เกี่ยวกับค่าใช้จ่ายในการบริหารงานที่มีวงเงินฯ ครั้งละไม่เกิน 10,000 บาท</div>
 </div>
 <div class="doc-meta">
-  <input class="hdr-inp" id="ph_line1" value='หลักสูตร "${title}" รุ่นที่ ${run}'>
-  <input class="hdr-inp" id="ph_line2" value="เลขที่รุ่นหลักสูตร ${runno}${dateStr?' ในวันที่ '+dateStr:''}">
-  <input class="hdr-inp" id="ph_line3" value="${location?'ณ '+location:''}">
-  <input class="hdr-inp" id="ph_line4" value="">
+  <div class="hdr-inp" id="ph_line1" contenteditable="true">หลักสูตร "${title}" รุ่นที่ ${run}</div>
+  <div class="hdr-inp" id="ph_line2" contenteditable="true">เลขที่รุ่นหลักสูตร ${runno}${dateStr?' ในวันที่ '+dateStr:''}</div>
+  <div class="hdr-inp" id="ph_line3" contenteditable="true">${location?'ณ '+location:''}</div>
+  <div class="hdr-inp" id="ph_line4" contenteditable="true"></div>
 </div>
-
-<table class="doc-table">
-  <thead>
-    <tr>
-      <th style="width:6%">ลำดับที่</th>
-      <th style="width:${itemColWidth}%" class="tl">รายการ</th>
-      <th style="width:10%">รหัสบัญชี</th>
-      <th style="width:10%">มูลค่าสินค้า</th>
-      <th style="width:10%">ภาษีมูลค่าเพิ่ม</th>
-      ${hasWht ? '<th style="width:10%">ภาษีหัก ณ ที่จ่าย</th>' : ''}
-      <th style="width:10%">จำนวนเงิน</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr class="row-cat">
-      <td colspan="${colCount}">ก. ค่าดำเนินการฝึกอบรม</td>
-    </tr>
-    ${bodyHtml}
-    <tr class="row-grand">
-      <td colspan="3" class="tc">รวมค่าใช้จ่ายตาม ว.119 ทั้งสิ้น</td>
-      <td class="tr">${fmtMoney(gVal)}</td>
-      <td class="tr">${fmtMoney2(gVat)}</td>
-      ${hasWht ? `<td class="tr">${fmtMoney2(gWht)}</td>` : ''}
-      <td class="tr">${fmtMoney(gTotal)}</td>
-    </tr>
-  </tbody>
-</table>
+${tablesHtml}
 </div>`;
 }
 
@@ -518,6 +661,9 @@ function rebuildPreview(){
    ============================================================ */
 function renderDocDisplay(){
   document.getElementById('doc-display').innerHTML = buildDocHtml();
+  // ✅ แปลงตัวเลขทั้งหมด (หัวเอกสาร + ตัวเลขในตาราง) เป็นเลขไทย — ล้อพฤติกรรมไฟล์ 06 เป๊ะ
+  // (06 เรียก convertToThaiNumerals บน #report-view ทั้งก้อนหลัง build เสร็จเช่นกัน)
+  convertToThaiNumerals(document.getElementById('doc-display'));
 }
 
 /* ============================================================
@@ -559,11 +705,13 @@ async function savePdf(btn){
 
     /* แปลง input.hdr-inp (หัวเอกสารที่แก้ไขได้) → div ข้อความนิ่งๆ ก่อนส่งไป render
        (เก็บ inline style เดิมไว้ — ปรับ text-align/weight ให้ล้อของเดิม) */
-    clone.querySelectorAll('input.hdr-inp').forEach(inp => {
-      const d = document.createElement('div');
-      d.style.cssText = 'font-family:Sarabun,sans-serif;font-size:13px;font-weight:700;color:#000;text-align:center;line-height:1.7;width:100%;';
-      d.textContent = inp.value;
-      inp.parentNode.replaceChild(d, inp);
+    // ✅ หัวเอกสาร (ph_title1-3/ph_line1-4) ตอนนี้เป็น <div contenteditable> แล้ว (ไม่ใช่ <input>
+    // อีกต่อไป — ดู buildDocHtml) แค่ถอด attribute contenteditable ออกก่อนส่ง render พอ เนื้อหา
+    // ที่ผู้ใช้แก้ไขอยู่ใน DOM node เองอยู่แล้วเพราะเป็น contenteditable จริง ไม่ต้อง sync .value
+    // แยกเหมือนตอนเคยเป็น input (ล้อวิธีของไฟล์ 06 ทุกประการ)
+    clone.querySelectorAll('[contenteditable]').forEach(el2 => {
+      el2.removeAttribute('contenteditable');
+      el2.style.outline = 'none';
     });
 
     // ✅ ดึง CSS หลักของหน้าเว็บทั้งดวง (นิยาม .doc-table, .row-cat, .row-sub, .row-grand ฯลฯ)

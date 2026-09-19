@@ -12,6 +12,7 @@
 <script src="js/auth.js"></script>
 <script src="js/date-th.js"></script>
 <script src="js/gas-api.js"></script>
+<script src="js/print-layout.js"></script>
 <script>checkAuth();</script>
 
 <style>
@@ -181,6 +182,7 @@ table.rpt tbody td{padding:var(--row-pad-v,5px) 10px;border:0.5px solid #555;ver
   .bgray{background:#eaeaea!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .rpt-edit{border:none!important;}
   .hdr-edit{border:none!important;border-bottom:none!important;}
+  .no-print{display:none!important;}
   
   .note-row-2:has(input:placeholder-shown) {
     display: none !important;
@@ -555,7 +557,7 @@ table.rpt tbody td{padding:var(--row-pad-v,5px) 10px;border:0.5px solid #555;ver
 <div class="form-section" id="sec_kor_wrap">
   <div class="form-section-header">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-weight:700;">
-      <input type="checkbox" id="chk_kor" checked onchange="onCondChange()" style="width:16px;height:16px;">
+      <input type="checkbox" id="chk_kor" onchange="onCondChange()" style="width:16px;height:16px;">
       ข. ค่าใช้จ่ายในการเดินทางของผู้เข้ารับการฝึกอบรม
     </label>
   </div>
@@ -620,10 +622,10 @@ table.rpt tbody td{padding:var(--row-pad-v,5px) 10px;border:0.5px solid #555;ver
     
       <h1 style="margin-top: 10px !important;"></h1>
 
-      <h1><input class="rpt-edit hdr-edit" type="text" id="r_title" value="ประมาณการค่าใช้จ่าย..." style="width:100%;text-align:center;font-size:inherit;font-weight:inherit;color:inherit;font-family:inherit;border-bottom:1px dotted #aaa;padding:2px 4px;"></h1>
-      <p><input class="rpt-edit hdr-edit" type="text" id="r_hdr1" style="width:100%;text-align:center;font-size:inherit;font-weight:inherit;color:inherit;font-family:inherit;border-bottom:1px dotted #aaa;padding:2px 4px;"></p>
-      <p><input class="rpt-edit hdr-edit" type="text" id="r_hdr2" style="width:100%;text-align:center;font-size:inherit;font-weight:inherit;color:inherit;font-family:inherit;border-bottom:1px dotted #aaa;padding:2px 4px;"></p>
-      <p><input class="rpt-edit hdr-edit" type="text" id="r_hdr3" style="width:100%;text-align:center;font-size:inherit;font-weight:inherit;color:inherit;font-family:inherit;border-bottom:1px dotted #aaa;padding:2px 4px;"></p>
+      <h1><div class="rpt-edit hdr-edit" contenteditable="true" id="r_title" style="width:100%;text-align:center;font-size:inherit;font-weight:inherit;color:inherit;font-family:inherit;background:transparent;border:none;outline:none;padding:2px 4px;">ประมาณการค่าใช้จ่าย...</div></h1>
+      <p><div class="rpt-edit hdr-edit" contenteditable="true" id="r_hdr1" style="width:100%;text-align:center;font-size:inherit;font-weight:inherit;color:inherit;font-family:inherit;background:transparent;border:none;outline:none;padding:2px 4px;"></div></p>
+      <p><div class="rpt-edit hdr-edit" contenteditable="true" id="r_hdr2" style="width:100%;text-align:center;font-size:inherit;font-weight:inherit;color:inherit;font-family:inherit;background:transparent;border:none;outline:none;padding:2px 4px;"></div></p>
+      <p><div class="rpt-edit hdr-edit" contenteditable="true" id="r_hdr3" style="width:100%;text-align:center;font-size:inherit;font-weight:inherit;color:inherit;font-family:inherit;background:transparent;border:none;outline:none;padding:2px 4px;"></div></p>
     </div>
     <div id="rpt_wrap"></div>
   </div>
@@ -1057,6 +1059,18 @@ function formatDateRangeTH(dates){
     return `${parsed[0].day} - ${parsed[parsed.length-1].day} ${parsed[0].rest}`;
   }
   return clean.join(', ');
+}
+
+// ✅ เพิ่มบรรทัดหมายเหตุเพิ่มเติมได้เรื่อยๆ (เดิมตายตัว 2 บรรทัด ตอนนี้เริ่มที่ 1 บรรทัด กดปุ่มเพิ่มเอง
+// ได้ไม่จำกัด) — เรียกจากปุ่มใน noteHTML ที่ buildTable() สร้างไว้ (ปุ่มถูกซ่อนตอนพิมพ์/เซฟ PDF
+// ด้วย class .no-print)
+function addNoteLine05(){
+  const container = document.getElementById('noteExtraLines');
+  if(!container) return;
+  const div = document.createElement('div');
+  div.className = 'note-row-2';
+  div.innerHTML = `<span style="color: #000;"> </span><input class="rpt-edit" type="text" placeholder="ระบุหมายเหตุเพิ่มเติมที่นี่ (ถ้ามี)..." style="width: 95%; font-family: 'Sarabun', sans-serif; font-size: 14px; color: #000; font-weight: normal;">`;
+  container.appendChild(div);
 }
 
 function buildTable(){
@@ -1519,14 +1533,14 @@ if(useInternal){
         <div style="margin-bottom: 4px;">
           <input class="rpt-edit" type="text" value="1. ยืมเงินทดลองจ่าย ข้อ ก. (1. - ${baseNote}.) เป็นเงิน ${fmt(extTotalNote)} บาท (เงิน${ThaiBaht(extTotalNote)})" style="width: 100%; color: #000 !important; font-family: 'Sarabun', sans-serif; font-size: 14px; font-weight: normal;">
         </div>
-        
-        <div class="note-row-2">
-          <span style="color: #000;"> </span><input class="rpt-edit" type="text" placeholder="ระบุหมายเหตุเพิ่มเติมที่นี่ (ถ้ามี)..." style="width: 95%; font-family: 'Sarabun', sans-serif; font-size: 14px; color: #000; font-weight: normal;">
+
+        <div id="noteExtraLines">
+          <div class="note-row-2">
+            <span style="color: #000;"> </span><input class="rpt-edit" type="text" placeholder="ระบุหมายเหตุเพิ่มเติมที่นี่ (ถ้ามี)..." style="width: 95%; font-family: 'Sarabun', sans-serif; font-size: 14px; color: #000; font-weight: normal;">
+          </div>
         </div>
-        
-        <div class="note-row-2">
-          <span style="color: #000;"> </span><input class="rpt-edit" type="text" placeholder="ระบุหมายเหตุเพิ่มเติมที่นี่ (ถ้ามี)..." style="width: 95%; font-family: 'Sarabun', sans-serif; font-size: 14px; color: #000; font-weight: normal;">
-        </div>
+        <button type="button" class="no-print btn-add-note" onclick="addNoteLine05()"
+          style="margin-top:4px;padding:3px 12px;font-size:12px;border:1px dashed var(--blue,#1a56db);background:var(--blue-light,#e8f0fe);color:var(--blue,#1a56db);border-radius:5px;cursor:pointer;font-family:'Sarabun',sans-serif;">+ เพิ่มบรรทัด</button>
       </div>
     </div>
   `;
@@ -1538,9 +1552,9 @@ if(useInternal){
    SHOW / BACK
 ============================================================ */
 function showReport(doPrint){
-  document.getElementById('r_hdr1').value=`หลักสูตร "${document.getElementById('f_courseName').value}" รุ่นที่ ${document.getElementById('f_batch').value}`;
-  document.getElementById('r_hdr2').value=`เลขที่รุ่นหลักสูตร ${document.getElementById('f_courseNo').value} ในวันที่ ${document.getElementById('f_date').value}`;
-  document.getElementById('r_hdr3').value=`ณ ${document.getElementById('f_location').value}`;
+  document.getElementById('r_hdr1').textContent=`หลักสูตร "${document.getElementById('f_courseName').value}" รุ่นที่ ${document.getElementById('f_batch').value}`;
+  document.getElementById('r_hdr2').textContent=`เลขที่รุ่นหลักสูตร ${document.getElementById('f_courseNo').value} ในวันที่ ${document.getElementById('f_date').value}`;
+  document.getElementById('r_hdr3').textContent=`ณ ${document.getElementById('f_location').value}`;
   document.getElementById('rpt_wrap').innerHTML=buildTable();
 
   try {
@@ -1553,7 +1567,7 @@ function showReport(doPrint){
   document.getElementById('report-view').style.display='block';
   const hdr05 = document.querySelector('.site-header'); if(hdr05) hdr05.style.display='none';
   const ftr05 = document.querySelector('footer'); if(ftr05) ftr05.style.display='none';
-  applyRowSpacing05();
+  rowSpacing05.init();
   window.scrollTo(0,0);
   if(doPrint) setTimeout(()=>window.print(),300);
 }
@@ -1565,43 +1579,15 @@ function backToForm(){
   window.scrollTo(0,0);
 }
 
-const ROW_SPACING_LEVELS_05 = [
-  {label:'แน่น',      pad:'2px'},
-  {label:'กระชับ',    pad:'3.5px'},
-  {label:'ปกติ',      pad:'5px'},
-  {label:'กว้าง',     pad:'7px'},
-  {label:'กว้างมาก',  pad:'9px'},
-];
-let rowSpacingIdx05 = 2; // ปกติ
-
-function applyRowSpacing05(){
-  const lvl = ROW_SPACING_LEVELS_05[rowSpacingIdx05];
-  const rc = document.getElementById('report-container-05');
-  if(rc) rc.style.setProperty('--row-pad-v', lvl.pad);
-  const lbl = document.getElementById('sp_level_05');
-  if(lbl) lbl.textContent = lvl.label;
-  const dec = document.getElementById('sp_dec');
-  const inc = document.getElementById('sp_inc');
-  if(dec) dec.disabled = (rowSpacingIdx05 === 0);
-  if(inc) inc.disabled = (rowSpacingIdx05 === ROW_SPACING_LEVELS_05.length - 1);
-  try{ sessionStorage.setItem('rpt05_rowSpacing', String(rowSpacingIdx05)); }catch(e){}
-}
-
-function adjustRowSpacing05(dir){
-  const next = rowSpacingIdx05 + dir;
-  if(next < 0 || next >= ROW_SPACING_LEVELS_05.length) return;
-  rowSpacingIdx05 = next;
-  applyRowSpacing05();
-}
-(function(){
-  try{
-    const saved = sessionStorage.getItem('rpt05_rowSpacing');
-    if(saved !== null){
-      const idx = parseInt(saved, 10);
-      if(!isNaN(idx) && idx >= 0 && idx < ROW_SPACING_LEVELS_05.length) rowSpacingIdx05 = idx;
-    }
-  }catch(e){}
-})();
+// ✅ ปุ่มปรับระยะห่างบรรทัด (ย้าย logic ไป PaginateTH.makeRowSpacingControl ใน js/print-layout.js
+// แล้ว — ไฟล์นี้แค่ผูก selector/id ของตัวเองเข้ากับ control ที่ใช้ร่วมกับ 06/07)
+const rowSpacing05 = PaginateTH.makeRowSpacingControl({
+  containerSelector: '#report-container-05',
+  sessionKey: 'rpt05_rowSpacing',
+  labelId: 'sp_level_05', decId: 'sp_dec', incId: 'sp_inc',
+});
+function adjustRowSpacing05(dir){ rowSpacing05.adjust(dir); }
+rowSpacing05.init();
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1805,10 +1791,10 @@ function restoreBudgetForm(budget, speakers) {
     document.getElementById('chk_misc').checked   = toggles.misc   !== undefined ? !!toggles.misc   : true;
     document.getElementById('chk_food').checked   = toggles.food   !== undefined ? !!toggles.food   : true;
     document.getElementById('chk_stafftravel').checked = toggles.stafftravel !== undefined ? !!toggles.stafftravel : true;
-    // ✅ checkbox ข. ต้องติ๊กไว้เป็นค่าเริ่มต้นเสมอ (ทั้งหลักสูตรใหม่และของเก่าที่บันทึกไว้ก่อนจะมี
-    // checkbox นี้ ซึ่งยังไม่เคยมี toggles.kor เก็บไว้เลย) — ปิดได้เฉพาะตอนที่เคยบันทึก kor:false ไว้จริงๆ
+    // ✅ ค่าเริ่มต้นของ checkbox ข. คือไม่ติ๊ก — ติ๊กเฉพาะตอนโหลดข้อมูลเก่าที่เคยบันทึก kor:true ไว้จริง
+    // (ข้อมูลเก่ามากๆ ที่ไม่เคยมี toggles.kor เก็บไว้เลยจะกลายเป็นไม่ติ๊ก เหมือนหลักสูตรใหม่)
     const chkKor = document.getElementById('chk_kor');
-    if (chkKor) chkKor.checked = toggles.kor !== undefined ? !!toggles.kor : true;
+    if (chkKor) chkKor.checked = !!toggles.kor;
 
     const lump = spkParsedPre.lump || {};
     document.getElementById('chk_lump').checked = !!lump.on;
@@ -2195,12 +2181,12 @@ async function savePdf05(btn){
   try {
     const clone = el.cloneNode(true);
 
-    // แปลง input ที่แก้ไขได้ (หัวกระดาษ/ช่องหมายเหตุ) ให้เป็นข้อความนิ่งๆ ก่อนส่งไป render
-    clone.querySelectorAll('input.hdr-edit').forEach(inp => {
-      const d = document.createElement('div');
-      d.style.cssText = 'font-family:Sarabun,sans-serif;font-size:14px;font-weight:700;color:#000;text-align:center;line-height:1.6;width:100%;';
-      d.textContent = inp.value;
-      inp.parentNode.replaceChild(d, inp);
+    // แปลง input ที่แก้ไขได้ (ช่องหมายเหตุ) ให้เป็นข้อความนิ่งๆ ก่อนส่งไป render
+    // (หัวเอกสาร 4 บรรทัด — r_title/r_hdr1-3 — เป็น <div contenteditable> อยู่แล้ว ไม่ใช่ input
+    // อีกต่อไป แค่ถอด attribute contenteditable ออกก่อนส่ง ดูด้านล่าง)
+    clone.querySelectorAll('[contenteditable]').forEach(el2 => {
+      el2.removeAttribute('contenteditable');
+      el2.style.outline = 'none';
     });
 
     clone.querySelectorAll('input.rpt-edit').forEach(inp => {
@@ -2291,7 +2277,7 @@ const res = await fetch(APP_CONFIG.PDF_SERVER_URL, {
           landscape: false,
           // มาตราส่วนหน้ากระดาษ — อ่านจากตัวเลือกที่ผู้ใช้ตั้งไว้ใต้ปุ่ม "บันทึก PDF"
           // (ค่าเริ่มต้น 90% ถ้าหา element ไม่เจอด้วยเหตุผลใดก็ตาม)
-          scale: parseFloat(document.getElementById('pdf_scale_05')?.value) || 0.9,
+          scale: PaginateTH.getPdfScale('pdf_scale_05', 90),
           margin: { top: '12mm', right: '5mm', bottom: '12mm', left: '5mm' },
           preferCSSPageSize: true,
         },
